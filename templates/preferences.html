@@ -10,6 +10,7 @@
     </div>
 </div>
 
+{% if is_admin %}
 <div class="row mb-4">
     <div class="col-12">
         <div class="card">
@@ -35,6 +36,15 @@
         </div>
     </div>
 </div>
+{% else %}
+<div class="row mb-3">
+    <div class="col-12">
+        <div class="alert alert-info">
+            <i class="fas fa-users"></i> <strong>{{ crews[0].crew_name }}</strong> - Setting preferences for your crew
+        </div>
+    </div>
+</div>
+{% endif %}
 
 <form method="POST">
     <input type="hidden" name="crew_id" value="{{ selected_crew_id }}">

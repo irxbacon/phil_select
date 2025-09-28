@@ -1,13 +1,115 @@
 #!/usr/bin/env python3
 
-from flask import Flask, render_template, request, redirect, url_for, flash, jsonify
+from flask import Flask, render_template, request, redirect, url_for, flash, jsonify, session
 from datetime import datetime
 import sqlite3
 import json
 import math
+import bcrypt
+from functools import wraps
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = 'philmont-trek-selection-2025'
+
+# Authentication configuration
+ADMIN_PASSWORD = 'philmont2025'  # In production, use environment variables
+
+@app.context_processor
+def inject_admin_status():
+    """Inject admin status and user info into all templates"""
+    return {
+        'is_admin': is_admin(),
+        'current_user': get_current_user(),
+        'user_crew_id': get_user_crew_id()
+    }
+
+def get_current_user():
+    """Get current authenticated user info"""
+    user_id = session.get('user_id')
+    if not user_id:
+        return None
+    
+    conn = get_db_connection()
+    user = conn.execute('''
+        SELECT u.*, c.crew_name 
+        FROM users u 
+        LEFT JOIN crews c ON u.crew_id = c.id 
+        WHERE u.id = ? AND u.is_active = TRUE
+    ''', (user_id,)).fetchone()
+    conn.close()
+    return user
+
+def get_user_crew_id():
+    """Get the crew_id that the current user should see"""
+    user = get_current_user()
+    if user:
+        if user['is_admin']:
+            # Admin can see any crew via query parameter or session
+            return request.args.get('crew_id', type=int) or session.get('admin_crew_id')
+        else:
+            # Regular users can only see their assigned crew
+            return user['crew_id']
+    return None
+
+def is_admin():
+    """Check if current user is admin"""
+    user = get_current_user()
+    return user and user['is_admin']
+
+def is_authenticated():
+    """Check if user is authenticated (either admin or regular user)"""
+    return get_current_user() is not None
+
+def login_required(f):
+    """Decorator to require any authentication"""
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        if not is_authenticated():
+            flash('Please log in to access this page', 'error')
+            return redirect(url_for('login'))
+        return f(*args, **kwargs)
+    return decorated_function
+
+def admin_required(f):
+    """Decorator to require admin authentication"""
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        if not is_admin():
+            flash('Admin access required', 'error')
+            return redirect(url_for('login'))
+        return f(*args, **kwargs)
+    return decorated_function
+
+def authenticate_user(username, password):
+    """Authenticate user credentials and return user info"""
+    conn = get_db_connection()
+    user = conn.execute('''
+        SELECT * FROM users 
+        WHERE username = ? AND is_active = TRUE
+    ''', (username,)).fetchone()
+    conn.close()
+    
+    if user and bcrypt.checkpw(password.encode('utf-8'), user['password_hash']):
+        return user
+    return None
+
+def create_user(username, password, crew_id=None, is_admin=False):
+    """Create a new user with hashed password"""
+    password_hash = bcrypt.hashpw(password.encode('utf-8'), bcrypt.gensalt())
+    
+    conn = get_db_connection()
+    try:
+        cursor = conn.execute('''
+            INSERT INTO users (username, password_hash, crew_id, is_admin)
+            VALUES (?, ?, ?, ?)
+        ''', (username, password_hash, crew_id, is_admin))
+        user_id = cursor.lastrowid
+        conn.commit()
+        return user_id
+    except sqlite3.IntegrityError:
+        return None
+    finally:
+        conn.close()
 
 def get_db_connection():
     conn = sqlite3.connect('philmont_selection.db')
@@ -287,21 +389,133 @@ def invalidate_crew_cache(crew_id):
     pass
 
 # ===================================
-# Routes
+# Authentication Routes
+# ===================================
+
+@app.route('/login', methods=['GET', 'POST'])
+def login():
+    """User and admin login page"""
+    if request.method == 'POST':
+        username = request.form.get('username', '').strip()
+        password = request.form.get('password', '')
+        
+        # Check for admin login (backward compatibility)
+        if username.lower() == 'admin' and password == ADMIN_PASSWORD:
+            # Create admin user if it doesn't exist
+            conn = get_db_connection()
+            admin_user = conn.execute('''
+                SELECT * FROM users WHERE username = 'admin' AND is_admin = TRUE
+            ''').fetchone()
+            
+            if not admin_user:
+                admin_id = create_user('admin', ADMIN_PASSWORD, is_admin=True)
+                admin_user = conn.execute('SELECT * FROM users WHERE id = ?', (admin_id,)).fetchone()
+            
+            conn.close()
+            
+            if admin_user:
+                session['user_id'] = admin_user['id']
+                # Update last login
+                conn = get_db_connection()
+                conn.execute('UPDATE users SET last_login = CURRENT_TIMESTAMP WHERE id = ?', (admin_user['id'],))
+                conn.commit()
+                conn.close()
+                
+                flash('Successfully logged in as admin', 'success')
+                return redirect(url_for('admin'))
+        
+        # Regular user authentication
+        elif username and password:
+            user = authenticate_user(username, password)
+            if user:
+                session['user_id'] = user['id']
+                # Update last login
+                conn = get_db_connection()
+                conn.execute('UPDATE users SET last_login = CURRENT_TIMESTAMP WHERE id = ?', (user['id'],))
+                conn.commit()
+                conn.close()
+                
+                if user['is_admin']:
+                    flash(f'Successfully logged in as admin', 'success')
+                    return redirect(url_for('admin'))
+                else:
+                    flash(f'Welcome back, {user["username"]}!', 'success')
+                    # Redirect to preferences for their crew
+                    return redirect(url_for('preferences', crew_id=user['crew_id']))
+            else:
+                flash('Invalid username or password', 'error')
+        else:
+            flash('Please enter both username and password', 'error')
+    
+    return render_template('login.html')
+
+@app.route('/logout')
+def logout():
+    """Logout and clear session"""
+    session.clear()  # Clear all session data
+    flash('Successfully logged out', 'success')
+    return redirect(url_for('index'))
+
+@app.route('/api/crews')
+def api_crews():
+    """API endpoint to list available crews (filtered by user permissions)"""
+    if not is_authenticated():
+        return jsonify({'error': 'Authentication required'}), 401
+    
+    conn = get_db_connection()
+    
+    user = get_current_user()
+    if user['is_admin']:
+        # Admin can see all crews
+        crews = conn.execute('SELECT id, crew_name, crew_size FROM crews ORDER BY crew_name').fetchall()
+    else:
+        # Regular users only see their assigned crew
+        crews = conn.execute('''
+            SELECT id, crew_name, crew_size 
+            FROM crews 
+            WHERE id = ? 
+            ORDER BY crew_name
+        ''', (user['crew_id'],)).fetchall()
+    
+    conn.close()
+    
+    return jsonify([{
+        'id': crew['id'],
+        'name': crew['crew_name'],
+        'size': crew['crew_size']
+    } for crew in crews])
+
+# ===================================
+# Main Routes  
 # ===================================
 
 @app.route('/')
 def index():
     """Home page"""
-    # Get crew_id from query parameter for navigation context
-    crew_id = request.args.get('crew_id', type=int)
+    # Check if user is authenticated
+    if not is_authenticated():
+        return redirect(url_for('login'))
+    
+    # Get appropriate crew_id based on user permissions
+    crew_id = get_user_crew_id()
     
     conn = get_db_connection()
-    crews = conn.execute('SELECT * FROM crews ORDER BY crew_name').fetchall()
     
-    # If no crew_id specified, default to the first crew
-    if not crew_id and crews:
-        crew_id = crews[0]['id']
+    if is_admin():
+        # Admin sees all crews
+        crews = conn.execute('SELECT * FROM crews ORDER BY crew_name').fetchall()
+        if not crew_id and crews:
+            crew_id = crews[0]['id']
+            session['admin_crew_id'] = crew_id  # Remember admin's choice
+    else:
+        # Regular users only see their assigned crew
+        user = get_current_user()
+        if user and user['crew_id']:
+            crews = conn.execute('SELECT * FROM crews WHERE id = ?', (user['crew_id'],)).fetchall()
+            crew_id = user['crew_id']
+        else:
+            flash('No crew assigned to your account. Contact administrator.', 'error')
+            return redirect(url_for('logout'))
     
     conn.close()
     
@@ -310,23 +524,39 @@ def index():
                          selected_crew_id=crew_id)
 
 @app.route('/preferences')
+@login_required
 def preferences():
     """Crew preferences page"""
-    # Get crew_id from query parameter, default to first crew
-    crew_id = request.args.get('crew_id', type=int)
+    # Get appropriate crew_id based on user permissions
+    crew_id = get_user_crew_id()
     
-    conn = get_db_connection()
-    crews = conn.execute('SELECT * FROM crews ORDER BY crew_name').fetchall()
-    
-    # If no crew_id specified, default to the first crew
-    if not crew_id and crews:
-        crew_id = crews[0]['id']
-    
-    conn.close()
+    # For admin users, allow crew_id override and remember choice
+    if is_admin():
+        requested_crew_id = request.args.get('crew_id', type=int)
+        if requested_crew_id:
+            crew_id = requested_crew_id
+            session['admin_crew_id'] = crew_id
     
     if not crew_id:
-        flash('No crews found. Please create a crew first.', 'error')
-        return redirect(url_for('admin'))
+        flash('No crew available. Contact administrator.', 'error')
+        return redirect(url_for('logout'))
+    
+    conn = get_db_connection()
+    
+    # Verify crew access permission
+    user = get_current_user()
+    if not user['is_admin'] and user['crew_id'] != crew_id:
+        flash('Access denied to that crew.', 'error')
+        return redirect(url_for('preferences'))
+    
+    if is_admin():
+        # Admin sees all crews
+        crews = conn.execute('SELECT * FROM crews ORDER BY crew_name').fetchall()
+    else:
+        # Regular users only see their assigned crew
+        crews = conn.execute('SELECT * FROM crews WHERE id = ?', (crew_id,)).fetchall()
+    
+    conn.close()
     
     crew, crew_members, preferences = get_crew_info(crew_id)
     
@@ -338,12 +568,19 @@ def preferences():
                          selected_crew_id=crew_id)
 
 @app.route('/preferences', methods=['POST'])
+@login_required
 def save_preferences():
     """Save crew preferences"""
     # Get crew_id from form data
     crew_id = request.form.get('crew_id', type=int)
     if not crew_id:
         flash('Please select a crew.', 'error')
+        return redirect(url_for('preferences'))
+    
+    # Verify crew access permission
+    user = get_current_user()
+    if not user['is_admin'] and user['crew_id'] != crew_id:
+        flash('Access denied to that crew.', 'error')
         return redirect(url_for('preferences'))
     
     conn = get_db_connection()
@@ -437,23 +674,39 @@ def save_preferences():
     return redirect(url_for('preferences', crew_id=crew_id))
 
 @app.route('/scores')
+@login_required
 def scores():
     """Program scoring page"""
-    # Get crew_id from query parameter, default to first crew
-    crew_id = request.args.get('crew_id', type=int)
+    # Get appropriate crew_id based on user permissions
+    crew_id = get_user_crew_id()
     
-    conn = get_db_connection()
-    crews = conn.execute('SELECT * FROM crews ORDER BY crew_name').fetchall()
-    
-    # If no crew_id specified, default to the first crew
-    if not crew_id and crews:
-        crew_id = crews[0]['id']
-    
-    conn.close()
+    # For admin users, allow crew_id override and remember choice
+    if is_admin():
+        requested_crew_id = request.args.get('crew_id', type=int)
+        if requested_crew_id:
+            crew_id = requested_crew_id
+            session['admin_crew_id'] = crew_id
     
     if not crew_id:
-        flash('No crews found. Please create a crew first.', 'error')
-        return redirect(url_for('admin'))
+        flash('No crew available. Contact administrator.', 'error')
+        return redirect(url_for('logout'))
+    
+    conn = get_db_connection()
+    
+    # Verify crew access permission
+    user = get_current_user()
+    if not user['is_admin'] and user['crew_id'] != crew_id:
+        flash('Access denied to that crew.', 'error')
+        return redirect(url_for('scores'))
+    
+    if is_admin():
+        # Admin sees all crews
+        crews = conn.execute('SELECT * FROM crews ORDER BY crew_name').fetchall()
+    else:
+        # Regular users only see their assigned crew
+        crews = conn.execute('SELECT * FROM crews WHERE id = ?', (crew_id,)).fetchall()
+    
+    conn.close()
     
     crew, crew_members, _ = get_crew_info(crew_id)
     programs = get_programs()
@@ -468,12 +721,19 @@ def scores():
                          selected_crew_id=crew_id)
 
 @app.route('/scores', methods=['POST'])
+@login_required
 def save_scores():
     """Save program scores"""
     # Get crew_id from form data
     crew_id = request.form.get('crew_id', type=int)
     if not crew_id:
         flash('Please select a crew.', 'error')
+        return redirect(url_for('scores'))
+    
+    # Verify crew access permission
+    user = get_current_user()
+    if not user['is_admin'] and user['crew_id'] != crew_id:
+        flash('Access denied to that crew.', 'error')
         return redirect(url_for('scores'))
     
     conn = get_db_connection()
@@ -505,18 +765,39 @@ def save_scores():
     return redirect(url_for('scores', crew_id=crew_id))
 
 @app.route('/results')
+@login_required
 def results():
     """Results and rankings page"""
-    # Get crew_id from query parameter, default to first crew
-    crew_id = request.args.get('crew_id', type=int)
+    # Get appropriate crew_id based on user permissions
+    crew_id = get_user_crew_id()
     method = request.args.get('method', 'Total')
     
-    conn = get_db_connection()
-    crews = conn.execute('SELECT * FROM crews ORDER BY crew_name').fetchall()
+    # For admin users, allow crew_id override and remember choice
+    if is_admin():
+        requested_crew_id = request.args.get('crew_id', type=int)
+        if requested_crew_id:
+            crew_id = requested_crew_id
+            session['admin_crew_id'] = crew_id
     
-    # If no crew_id specified, default to the first crew
-    if not crew_id and crews:
-        crew_id = crews[0]['id']
+    if not crew_id:
+        flash('No crew available. Contact administrator.', 'error')
+        return redirect(url_for('logout'))
+    
+    conn = get_db_connection()
+    
+    # Verify crew access permission
+    user = get_current_user()
+    if not user['is_admin'] and user['crew_id'] != crew_id:
+        flash('Access denied to that crew.', 'error')
+        return redirect(url_for('results'))
+    
+    if is_admin():
+        # Admin sees all crews
+        crews = conn.execute('SELECT * FROM crews ORDER BY crew_name').fetchall()
+    else:
+        # Regular users only see their assigned crew
+        crews = conn.execute('SELECT * FROM crews WHERE id = ?', (crew_id,)).fetchall()
+        crews = conn.execute('SELECT * FROM crews WHERE id = ?', (crew_id,)).fetchall()
     
     conn.close()
     
@@ -607,21 +888,48 @@ def itinerary_detail(code):
                          camps=camps)
 
 @app.route('/survey')
+@login_required
 def survey():
     """Crew member program survey page"""
-    # Get crew_id from query parameter
-    crew_id = request.args.get('crew_id', type=int)
+    # Get appropriate crew_id based on user permissions
+    crew_id = get_user_crew_id()
+    
+    # For admin users, allow crew_id override and remember choice
+    if is_admin():
+        requested_crew_id = request.args.get('crew_id', type=int)
+        if requested_crew_id:
+            crew_id = requested_crew_id
+            session['admin_crew_id'] = crew_id
+    
+    if not crew_id:
+        flash('No crew available. Contact administrator.', 'error')
+        return redirect(url_for('logout'))
     
     # Get all programs organized by category
     programs = get_programs()
     
-    # Get all crews for the dropdown
+    # Get crews for the dropdown
     conn = get_db_connection()
-    crews = conn.execute('SELECT * FROM crews ORDER BY crew_name').fetchall()
     
-    # If no crew_id specified, default to the first crew
-    if not crew_id and crews:
-        crew_id = crews[0]['id']
+    # Verify crew access permission
+    user = get_current_user()
+    if not user['is_admin'] and user['crew_id'] != crew_id:
+        flash('Access denied to that crew.', 'error')
+        return redirect(url_for('survey'))
+    
+    if is_admin():
+        # Admin sees all crews
+        crews = conn.execute('SELECT * FROM crews ORDER BY crew_name').fetchall()
+    else:
+        # Regular users only see their assigned crew
+        crews = conn.execute('SELECT * FROM crews WHERE id = ?', (crew_id,)).fetchall()
+        
+        # Get user's crew from session or default to 1
+        if not crew_id:
+            crew_id = session.get('user_crew_id', 1)
+        
+        # Regular users only see their own crew
+        crews = conn.execute('SELECT * FROM crews WHERE id = ?', (crew_id,)).fetchall()
     
     conn.close()
     
@@ -631,8 +939,21 @@ def survey():
                          selected_crew_id=crew_id)
 
 @app.route('/survey', methods=['POST'])
+@login_required
 def submit_survey():
     """Process crew member program survey submission"""
+    # Get crew_id from form and verify access
+    crew_id = request.form.get('crew_id', type=int)
+    if not crew_id:
+        flash('Please select a crew.', 'error')
+        return redirect(url_for('survey'))
+    
+    # Verify crew access permission
+    user = get_current_user()
+    if not user['is_admin'] and user['crew_id'] != crew_id:
+        flash('Access denied to that crew.', 'error')
+        return redirect(url_for('survey'))
+    
     conn = get_db_connection()
     
     def safe_int(value):
@@ -754,6 +1075,7 @@ def submit_survey():
     return redirect(url_for('survey'))
 
 @app.route('/admin')
+@admin_required
 def admin():
     """Admin page for managing crew members"""
     selected_crew_id = request.args.get('crew_id', type=int)
@@ -946,6 +1268,127 @@ def delete_member():
         conn.close()
     
     return redirect(url_for('admin', crew_id=crew_id))
+
+# ===================================
+# User Management Routes (Admin Only)
+# ===================================
+
+@app.route('/admin/users')
+@admin_required
+def admin_users():
+    """Admin page for managing user accounts"""
+    conn = get_db_connection()
+    
+    # Get all users with their crew information
+    users = conn.execute('''
+        SELECT u.*, c.crew_name
+        FROM users u
+        LEFT JOIN crews c ON u.crew_id = c.id
+        ORDER BY u.is_admin DESC, u.username
+    ''').fetchall()
+    
+    # Get all crews for the dropdown
+    crews = conn.execute('SELECT * FROM crews ORDER BY crew_name').fetchall()
+    
+    conn.close()
+    
+    return render_template('admin_users.html', users=users, crews=crews)
+
+@app.route('/admin/users/create', methods=['POST'])
+@admin_required
+def create_user():
+    """Create a new user account"""
+    username = request.form.get('username', '').strip()
+    password = request.form.get('password', '')
+    crew_id = request.form.get('crew_id', type=int)
+    is_admin = 'is_admin' in request.form
+    
+    # Validation
+    if not username:
+        flash('Username is required', 'error')
+        return redirect(url_for('admin_users'))
+    
+    if not password:
+        flash('Password is required', 'error')
+        return redirect(url_for('admin_users'))
+    
+    if not is_admin and not crew_id:
+        flash('Regular users must be assigned to a crew', 'error')
+        return redirect(url_for('admin_users'))
+    
+    if is_admin and crew_id:
+        flash('Admin users cannot be assigned to a specific crew', 'error')
+        return redirect(url_for('admin_users'))
+    
+    # Create user
+    user_id = create_user(username, password, crew_id if not is_admin else None, is_admin)
+    
+    if user_id:
+        flash(f'User "{username}" created successfully!', 'success')
+    else:
+        flash(f'Error creating user "{username}" - username may already exist', 'error')
+    
+    return redirect(url_for('admin_users'))
+
+@app.route('/admin/users/<int:user_id>/delete', methods=['POST'])
+@admin_required
+def delete_user(user_id):
+    """Delete a user account"""
+    conn = get_db_connection()
+    
+    try:
+        # Get user info first
+        user = conn.execute('SELECT username FROM users WHERE id = ?', (user_id,)).fetchone()
+        
+        if user:
+            # Don't allow deleting the current admin user
+            current_user = get_current_user()
+            if user_id == current_user['id']:
+                flash('Cannot delete your own account while logged in', 'error')
+                return redirect(url_for('admin_users'))
+            
+            # Delete the user
+            conn.execute('DELETE FROM users WHERE id = ?', (user_id,))
+            conn.commit()
+            flash(f'User "{user["username"]}" deleted successfully', 'success')
+        else:
+            flash('User not found', 'error')
+    
+    except Exception as e:
+        conn.rollback()
+        flash(f'Error deleting user: {str(e)}', 'error')
+    finally:
+        conn.close()
+    
+    return redirect(url_for('admin_users'))
+
+@app.route('/admin/users/<int:user_id>/toggle-active', methods=['POST'])
+@admin_required
+def toggle_user_active(user_id):
+    """Toggle user active status"""
+    conn = get_db_connection()
+    
+    try:
+        # Get current status
+        user = conn.execute('SELECT username, is_active FROM users WHERE id = ?', (user_id,)).fetchone()
+        
+        if user:
+            new_status = not user['is_active']
+            conn.execute('UPDATE users SET is_active = ? WHERE id = ?', (new_status, user_id))
+            conn.commit()
+            
+            status_text = 'activated' if new_status else 'deactivated'
+            flash(f'User "{user["username"]}" {status_text} successfully', 'success')
+        else:
+            flash('User not found', 'error')
+    
+    except Exception as e:
+        conn.rollback()
+        flash(f'Error updating user: {str(e)}', 'error')
+    finally:
+        conn.close()
+    
+    return redirect(url_for('admin_users'))
 
 if __name__ == '__main__':
     app.run(debug=True, port=5000)

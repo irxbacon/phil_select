@@ -139,6 +139,22 @@ CREATE TABLE crews (
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
+-- User authentication and crew assignment
+CREATE TABLE users (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    username VARCHAR(100) UNIQUE NOT NULL,
+    password_hash VARCHAR(255) NOT NULL, -- Store bcrypt/scrypt hash
+    crew_id INTEGER, -- NULL for admin users
+    is_admin BOOLEAN DEFAULT FALSE,
+    is_active BOOLEAN DEFAULT TRUE,
+    last_login TIMESTAMP,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (crew_id) REFERENCES crews(id) ON DELETE SET NULL,
+    -- Ensure admin users don't have crew assignments
+    CHECK ((is_admin = TRUE AND crew_id IS NULL) OR (is_admin = FALSE AND crew_id IS NOT NULL))
+);
+
 -- Individual crew members
 CREATE TABLE crew_members (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -390,6 +406,10 @@ CREATE INDEX idx_crew_members_crew ON crew_members(crew_id, member_number);
 CREATE INDEX idx_program_scores_crew_year ON program_scores(crew_id, year);
 CREATE INDEX idx_crew_results_crew_year ON crew_results(crew_id, year, ranking);
 CREATE INDEX idx_calculation_log_crew ON calculation_log(crew_id, year);
+-- User authentication indexes
+CREATE INDEX idx_users_username ON users(username);
+CREATE INDEX idx_users_crew ON users(crew_id);
+CREATE INDEX idx_users_active ON users(is_active, is_admin);
 
 -- ===================================
 -- Default Configuration Data
@@ -435,4 +455,11 @@ CREATE TRIGGER update_itineraries_timestamp
     AFTER UPDATE ON itineraries
     BEGIN
         UPDATE itineraries SET updated_at = CURRENT_TIMESTAMP WHERE id = NEW.id;
+    END;
+
+-- Update timestamp on user changes
+CREATE TRIGGER update_users_timestamp 
+    AFTER UPDATE ON users
+    BEGIN
+        UPDATE users SET updated_at = CURRENT_TIMESTAMP WHERE id = NEW.id;
     END;

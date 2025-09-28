@@ -10,6 +10,7 @@
     </div>
 </div>
 
+{% if is_admin %}
 <div class="row mb-4">
     <div class="col-12">
         <div class="card">
@@ -36,6 +37,15 @@
         </div>
     </div>
 </div>
+{% else %}
+<div class="row mb-3">
+    <div class="col-12">
+        <div class="alert alert-info">
+            <i class="fas fa-trophy"></i> <strong>{{ crews[0].crew_name }}</strong> - Trek selection results
+        </div>
+    </div>
+</div>
+{% endif %}
 
 <div class="row mb-4">
     <div class="col-md-6">

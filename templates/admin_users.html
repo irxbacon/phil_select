@@ -1,0 +1,195 @@
+{% extends "base.html" %}
+
+{% block title %}User Management - Philmont Trek Selection{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h1><i class="fas fa-users"></i> User Management</h1>
+    <a href="{{ url_for('admin') }}" class="btn btn-outline-secondary">
+        <i class="fas fa-arrow-left"></i> Back to Admin
+    </a>
+</div>
+
+{% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}
+        {% for category, message in messages %}
+            <div class="alert alert-{{ 'danger' if category == 'error' else category }} alert-dismissible fade show">
+                {{ message }}
+                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            </div>
+        {% endfor %}
+    {% endif %}
+{% endwith %}
+
+<!-- Create New User Form -->
+<div class="card mb-4">
+    <div class="card-header">
+        <h5 class="mb-0"><i class="fas fa-user-plus"></i> Create New User</h5>
+    </div>
+    <div class="card-body">
+        <form method="POST" action="{{ url_for('create_user') }}">
+            <div class="row">
+                <div class="col-md-3">
+                    <div class="mb-3">
+                        <label for="username" class="form-label">Username</label>
+                        <input type="text" class="form-control" id="username" name="username" required>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="mb-3">
+                        <label for="password" class="form-label">Password</label>
+                        <input type="password" class="form-control" id="password" name="password" required>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="mb-3">
+                        <label for="crew_id" class="form-label">Assigned Crew</label>
+                        <select class="form-select" id="crew_id" name="crew_id">
+                            <option value="">Select Crew (Regular Users Only)</option>
+                            {% for crew in crews %}
+                                <option value="{{ crew.id }}">{{ crew.crew_name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="mb-3">
+                        <div class="form-check mt-4 pt-2">
+                            <input type="checkbox" class="form-check-input" id="is_admin" name="is_admin" onchange="toggleCrewSelection()">
+                            <label class="form-check-label" for="is_admin">
+                                <strong>Admin User</strong>
+                            </label>
+                        </div>
+                        <button type="submit" class="btn btn-success mt-2">
+                            <i class="fas fa-plus"></i> Create User
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- User List -->
+<div class="card">
+    <div class="card-header">
+        <h5 class="mb-0"><i class="fas fa-list"></i> Existing Users ({{ users|length }})</h5>
+    </div>
+    <div class="card-body">
+        {% if users %}
+            <div class="table-responsive">
+                <table class="table table-hover">
+                    <thead>
+                        <tr>
+                            <th>Username</th>
+                            <th>Type</th>
+                            <th>Assigned Crew</th>
+                            <th>Status</th>
+                            <th>Last Login</th>
+                            <th>Created</th>
+                            <th class="text-center">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for user in users %}
+                            <tr class="{{ 'table-warning' if not user.is_active else '' }}">
+                                <td>
+                                    <strong>{{ user.username }}</strong>
+                                    {% if user.is_admin %}
+                                        <i class="fas fa-shield-alt text-danger ms-1" title="Admin"></i>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    {% if user.is_admin %}
+                                        <span class="badge bg-danger">Admin</span>
+                                    {% else %}
+                                        <span class="badge bg-primary">Regular User</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    {% if user.crew_name %}
+                                        {{ user.crew_name }}
+                                    {% else %}
+                                        <span class="text-muted">N/A (Admin)</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    {% if user.is_active %}
+                                        <span class="badge bg-success">Active</span>
+                                    {% else %}
+                                        <span class="badge bg-secondary">Inactive</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    {% if user.last_login %}
+                                        <small>{{ user.last_login }}</small>
+                                    {% else %}
+                                        <span class="text-muted">Never</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    <small>{{ user.created_at }}</small>
+                                </td>
+                                <td class="text-center">
+                                    <div class="btn-group btn-group-sm">
+                                        <!-- Toggle Active Status -->
+                                        <form method="POST" action="{{ url_for('toggle_user_active', user_id=user.id) }}" class="d-inline">
+                                            {% if user.is_active %}
+                                                <button type="submit" class="btn btn-outline-warning" title="Deactivate User">
+                                                    <i class="fas fa-pause"></i>
+                                                </button>
+                                            {% else %}
+                                                <button type="submit" class="btn btn-outline-success" title="Activate User">
+                                                    <i class="fas fa-play"></i>
+                                                </button>
+                                            {% endif %}
+                                        </form>
+                                        
+                                        <!-- Delete User -->
+                                        {% if current_user.id != user.id %}
+                                            <form method="POST" action="{{ url_for('delete_user', user_id=user.id) }}" class="d-inline" onsubmit="return confirm('Are you sure you want to delete user {{ user.username }}? This action cannot be undone.')">
+                                                <button type="submit" class="btn btn-outline-danger" title="Delete User">
+                                                    <i class="fas fa-trash"></i>
+                                                </button>
+                                            </form>
+                                        {% else %}
+                                            <button type="button" class="btn btn-outline-secondary" disabled title="Cannot delete your own account">
+                                                <i class="fas fa-ban"></i>
+                                            </button>
+                                        {% endif %}
+                                    </div>
+                                </td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        {% else %}
+            <div class="alert alert-info">
+                <i class="fas fa-info-circle"></i> No users found. Create the first user account above.
+            </div>
+        {% endif %}
+    </div>
+</div>
+
+<script>
+function toggleCrewSelection() {
+    const isAdminChecked = document.getElementById('is_admin').checked;
+    const crewSelect = document.getElementById('crew_id');
+    
+    if (isAdminChecked) {
+        crewSelect.value = '';
+        crewSelect.disabled = true;
+        crewSelect.required = false;
+    } else {
+        crewSelect.disabled = false;
+        crewSelect.required = true;
+    }
+}
+
+// Initialize the form state
+document.addEventListener('DOMContentLoaded', function() {
+    toggleCrewSelection();
+});
+</script>
+{% endblock %}
