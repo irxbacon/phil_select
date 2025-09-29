@@ -177,6 +177,37 @@ class PhilmontScorer:
         
         return self._scoring_factors.get(factor_code, 1.0)
     
+    def get_crew_skill_level(self):
+        """Calculate average crew skill level"""
+        conn = get_db_connection()
+        skill_data = conn.execute('''
+            SELECT AVG(skill_level) as avg_skill
+            FROM crew_members 
+            WHERE crew_id = ? AND skill_level IS NOT NULL
+        ''', (self.crew_id,)).fetchone()
+        conn.close()
+        
+        if skill_data and skill_data['avg_skill']:
+            # Round to nearest integer skill level (1-5)
+            return max(1, min(5, round(skill_data['avg_skill'])))
+        return 3  # Default to skill level 3 if no data
+    
+    def set_itinerary_difficulty_factor(self, itinerary_difficulty, crew_skill_level=None):
+        """
+        Get difficulty factor based on crew skill level vs itinerary difficulty
+        Replicates Excel setItineraryDifficultyFactor method
+        """
+        if crew_skill_level is None:
+            crew_skill_level = self.get_crew_skill_level()
+        
+        # Get the factor from the lookup table
+        if crew_skill_level in self._skill_difficulty_factors:
+            if itinerary_difficulty in self._skill_difficulty_factors[crew_skill_level]:
+                return self._skill_difficulty_factors[crew_skill_level][itinerary_difficulty]
+        
+        # Default fallback if not found
+        return 2000
+    
     def _load_scoring_factors(self):
         """Load scoring factors from database"""
         conn = get_db_connection()
@@ -194,10 +225,20 @@ class PhilmontScorer:
         # Set defaults if not found in database
         self._scoring_factors.setdefault('programFactor', 1.5)
         self._scoring_factors.setdefault('difficultDelta', 1.0)
-        self._scoring_factors.setdefault('maxDifficult', 1.0)
-        self._scoring_factors.setdefault('maxSkill', 1.0)
+        self._scoring_factors.setdefault('maxDifficult', 1000.0)
+        self._scoring_factors.setdefault('maxSkill', 4000.0)
         self._scoring_factors.setdefault('skillDelta', 1.0)
         self._scoring_factors.setdefault('mileageFactor', 1.0)
+        self._scoring_factors.setdefault('minDifficult', 500.0)
+        
+        # Load skill level difficulty factor lookup table (from Excel Tables sheet)
+        self._skill_difficulty_factors = {
+            1: {'C': 5000, 'R': 3500, 'S': 2000, 'SS': 500},
+            2: {'C': 4500, 'R': 3333, 'S': 2167, 'SS': 1000},
+            3: {'C': 4000, 'R': 3167, 'S': 2333, 'SS': 1500},
+            4: {'C': 3500, 'R': 3000, 'S': 2500, 'SS': 2000},
+            5: {'C': 3000, 'R': 2833, 'S': 2667, 'SS': 2500}
+        }
         
     def get_program_scores(self, method='Total'):
         """Calculate program scores using specified method (Total, Average, Median, Mode)"""
@@ -338,13 +379,16 @@ class PhilmontScorer:
         elif difficulty == 'SS' and crew_prefs.get('difficulty_super_strenuous', True):
             difficulty_accepted = True
         
-        base_score = 100 if difficulty_accepted else 0
+        if not difficulty_accepted:
+            return 0
         
-        # Apply difficulty factors from database
+        # Apply skill level vs difficulty factor (replicates Excel setItineraryDifficultyFactor)
+        difficulty_factor = self.set_itinerary_difficulty_factor(difficulty)
+        
+        # Apply additional multipliers from database
         difficulty_delta = self.get_score_factor('difficultDelta')
-        max_difficulty = self.get_score_factor('maxDifficult')
         
-        return base_score * difficulty_delta * max_difficulty
+        return difficulty_factor * difficulty_delta
     
     def _calculate_area_score(self, itinerary, crew_prefs):
         """Calculate area preference score"""

@@ -1,8 +1,8 @@
 <li>
 <del>Add Basecamp Hike out/Hike In preferences (may need to add to Itineraries)</del>
-<li>Use an average of crew capability for preferences
+<del><li>Use an average of crew capability for preferences</del>
 <li>Add Trail Peak to peaks preferences
 <li>Crew Program Preferences graph (total score of each activity, graphically displayed)
 <li>Dry Camps/Showers/Layovers for itinerary
 <li>days of food from base camp, max days of food
-<li>Check difficulty scoring
+<del><li>Check difficulty scoring</del>
