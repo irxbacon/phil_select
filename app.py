@@ -713,6 +713,7 @@ def save_preferences():
                 climb_phillips = ?,
                 climb_tooth = ?,
                 climb_inspiration_point = ?,
+                climb_trail_peak = ?,
                 hike_in_preference = ?,
                 hike_out_preference = ?,
                 programs_important = ?,
@@ -734,6 +735,7 @@ def save_preferences():
             'climb_phillips' in request.form,
             'climb_tooth' in request.form,
             'climb_inspiration_point' in request.form,
+            'climb_trail_peak' in request.form,
             'hike_in_preference' in request.form,
             'hike_out_preference' in request.form,
             'programs_important' in request.form,
@@ -746,8 +748,8 @@ def save_preferences():
             (crew_id, area_important, area_rank_south, area_rank_central, area_rank_north, area_rank_valle_vidal,
              max_altitude_important, max_altitude_threshold, difficulty_challenging, difficulty_rugged, 
              difficulty_strenuous, difficulty_super_strenuous, climb_baldy, climb_phillips, climb_tooth, 
-             climb_inspiration_point, hike_in_preference, hike_out_preference, programs_important)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+             climb_inspiration_point, climb_trail_peak, hike_in_preference, hike_out_preference, programs_important)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         ''', (
             crew_id,
             'area_important' in request.form,
@@ -765,6 +767,7 @@ def save_preferences():
             'climb_phillips' in request.form,
             'climb_tooth' in request.form,
             'climb_inspiration_point' in request.form,
+            'climb_trail_peak' in request.form,
             'hike_in_preference' in request.form,
             'hike_out_preference' in request.form,
             'programs_important' in request.form
