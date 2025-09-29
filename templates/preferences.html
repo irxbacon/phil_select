@@ -259,6 +259,46 @@
     </div>
 
     <div class="row">
+        <!-- Hiking Preferences -->
+        <div class="col-md-12 mb-4">
+            <div class="card">
+                <div class="card-header">
+                    <i class="fas fa-hiking"></i> Hiking Preferences
+                </div>
+                <div class="card-body">
+                    <p><small>Select your crew's hiking preferences (500 points each when matched):</small></p>
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="form-check mb-2">
+                                <input class="form-check-input" type="checkbox" id="hike_in_preference" name="hike_in_preference"
+                                       {% if not preferences or preferences.hike_in_preference %}checked{% endif %}>
+                                <label class="form-check-label" for="hike_in_preference">
+                                    <i class="fas fa-hiking text-success"></i> <strong>Prefer to hike in to start</strong>
+                                </label>
+                                <div class="form-text">
+                                    Prefer itineraries that start with a hike rather than bus transportation to the first camp.
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="form-check mb-2">
+                                <input class="form-check-input" type="checkbox" id="hike_out_preference" name="hike_out_preference"
+                                       {% if not preferences or preferences.hike_out_preference %}checked{% endif %}>
+                                <label class="form-check-label" for="hike_out_preference">
+                                    <i class="fas fa-hiking text-info"></i> <strong>Prefer to hike out at the end</strong>
+                                </label>
+                                <div class="form-text">
+                                    Prefer itineraries that end with a hike rather than bus transportation from the last camp.
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row">
         <div class="col-12 mb-4">
             <div class="card">
                 <div class="card-header">

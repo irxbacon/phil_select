@@ -243,7 +243,8 @@ class PhilmontScorer:
                 'difficulty_score': self._calculate_difficulty_score(itin, crew_prefs),
                 'area_score': self._calculate_area_score(itin, crew_prefs),
                 'altitude_score': self._calculate_altitude_score(itin, crew_prefs),
-                'distance_score': self._calculate_distance_score(itin, crew_prefs)
+                'distance_score': self._calculate_distance_score(itin, crew_prefs),
+                'hike_score': self._calculate_hike_score(itin, crew_prefs)
             }
             
             total_score = sum(score_components.values())
@@ -345,6 +346,20 @@ class PhilmontScorer:
         """Calculate distance-based score"""
         distance = itinerary['distance'] or 50
         return max(0, 100 - abs(distance - 50))  # Prefer distances around 50 miles
+    
+    def _calculate_hike_score(self, itinerary, crew_prefs):
+        """Calculate hike in/out preference score"""
+        score = 0
+        
+        # Check hike out preference (starts_at = 'Hike Out' means hiking out of base camp to start)
+        if crew_prefs.get('hike_out_preference', True) and itinerary['starts_at'] == 'Hike Out':
+            score += 500
+        
+        # Check hike in preference (ends_at = 'Hike In' means hiking in to base camp to end)
+        if crew_prefs.get('hike_in_preference', True) and itinerary['ends_at'] == 'Hike In':
+            score += 500
+        
+        return score
 
 # ===================================
 # Helper Functions for Score Management
@@ -616,6 +631,8 @@ def save_preferences():
                 climb_phillips = ?,
                 climb_tooth = ?,
                 climb_inspiration_point = ?,
+                hike_in_preference = ?,
+                hike_out_preference = ?,
                 programs_important = ?,
                 updated_at = CURRENT_TIMESTAMP
             WHERE crew_id = ?
@@ -635,6 +652,8 @@ def save_preferences():
             'climb_phillips' in request.form,
             'climb_tooth' in request.form,
             'climb_inspiration_point' in request.form,
+            'hike_in_preference' in request.form,
+            'hike_out_preference' in request.form,
             'programs_important' in request.form,
             crew_id
         ))
@@ -645,8 +664,8 @@ def save_preferences():
             (crew_id, area_important, area_rank_south, area_rank_central, area_rank_north, area_rank_valle_vidal,
              max_altitude_important, max_altitude_threshold, difficulty_challenging, difficulty_rugged, 
              difficulty_strenuous, difficulty_super_strenuous, climb_baldy, climb_phillips, climb_tooth, 
-             climb_inspiration_point, programs_important)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+             climb_inspiration_point, hike_in_preference, hike_out_preference, programs_important)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         ''', (
             crew_id,
             'area_important' in request.form,
@@ -664,6 +683,8 @@ def save_preferences():
             'climb_phillips' in request.form,
             'climb_tooth' in request.form,
             'climb_inspiration_point' in request.form,
+            'hike_in_preference' in request.form,
+            'hike_out_preference' in request.form,
             'programs_important' in request.form
         ))
     
