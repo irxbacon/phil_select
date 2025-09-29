@@ -304,6 +304,62 @@
                 </div>
             </div>
         </div>
+
+        <!-- Camp and Layover Preferences -->
+        <div class="col-md-12 mb-4">
+            <div class="card">
+                <div class="card-header">
+                    <i class="fas fa-campground"></i> Camp & Layover Preferences
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-4">
+                            <div class="form-group mb-3">
+                                <label for="max_dry_camps" class="form-label">
+                                    <i class="fas fa-tint text-warning"></i> <strong>Maximum Dry Camps</strong>
+                                </label>
+                                <select class="form-control" id="max_dry_camps" name="max_dry_camps">
+                                    <option value="">No limit</option>
+                                    <option value="0" {% if preferences and preferences.max_dry_camps == 0 %}selected{% endif %}>0 (Avoid all dry camps)</option>
+                                    <option value="1" {% if preferences and preferences.max_dry_camps == 1 %}selected{% endif %}>1 dry camp maximum</option>
+                                    <option value="2" {% if preferences and preferences.max_dry_camps == 2 %}selected{% endif %}>2 dry camps maximum</option>
+                                    <option value="3" {% if preferences and preferences.max_dry_camps == 3 %}selected{% endif %}>3 dry camps maximum</option>
+                                    <option value="4" {% if preferences and preferences.max_dry_camps == 4 %}selected{% endif %}>4 dry camps maximum</option>
+                                    <option value="5" {% if preferences and preferences.max_dry_camps == 5 %}selected{% endif %}>5 dry camps maximum</option>
+                                </select>
+                                <div class="form-text">
+                                    Set the maximum number of camps without water sources your crew is willing to accept.
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="form-check mb-3" style="margin-top: 2rem;">
+                                <input class="form-check-input" type="checkbox" id="showers_required" name="showers_required"
+                                       {% if preferences and preferences.showers_required %}checked{% endif %}>
+                                <label class="form-check-label" for="showers_required">
+                                    <i class="fas fa-shower text-primary"></i> <strong>Showers Required</strong>
+                                </label>
+                                <div class="form-text">
+                                    Prefer itineraries that include camps with shower facilities.
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="form-check mb-3" style="margin-top: 2rem;">
+                                <input class="form-check-input" type="checkbox" id="layovers_required" name="layovers_required"
+                                       {% if preferences and preferences.layovers_required %}checked{% endif %}>
+                                <label class="form-check-label" for="layovers_required">
+                                    <i class="fas fa-calendar-alt text-success"></i> <strong>Layovers Required</strong>
+                                </label>
+                                <div class="form-text">
+                                    Prefer itineraries that include layover days for rest and activities.
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
     </div>
 
     <div class="row">

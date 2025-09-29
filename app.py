@@ -331,7 +331,8 @@ class PhilmontScorer:
                 'area_score': self._calculate_area_score(itin, crew_prefs),
                 'altitude_score': self._calculate_altitude_score(itin, crew_prefs),
                 'distance_score': self._calculate_distance_score(itin, crew_prefs),
-                'hike_score': self._calculate_hike_score(itin, crew_prefs)
+                'hike_score': self._calculate_hike_score(itin, crew_prefs),
+                'camp_score': self._calculate_camp_score(itin, crew_prefs, conn)
             }
             
             total_score = sum(score_components.values())
@@ -456,6 +457,55 @@ class PhilmontScorer:
         # Check hike in preference (ends_at = 'Hike In' means hiking in to base camp to end)
         if crew_prefs.get('hike_in_preference', True) and itinerary['ends_at'] == 'Hike In':
             score += 500
+        
+        return score
+    
+    def _calculate_camp_score(self, itinerary, crew_prefs, conn):
+        """Calculate camp and layover preference score"""
+        score = 0
+        
+        # Use dry_camps field from itineraries table
+        dry_camp_count = itinerary['dry_camps'] or 0
+        max_dry_camps = crew_prefs.get('max_dry_camps')
+        
+        if max_dry_camps is not None:
+            if dry_camp_count <= max_dry_camps:
+                # Award points for staying within limit, more points for fewer dry camps
+                score += (max_dry_camps - dry_camp_count + 1) * 200
+            else:
+                # Penalize for exceeding limit
+                score -= (dry_camp_count - max_dry_camps) * 500
+        
+        # Check for showers if required
+        if crew_prefs.get('showers_required', False):
+            # Get camps to check for showers
+            camps = conn.execute('''
+                SELECT c.has_showers
+                FROM camps c
+                JOIN itinerary_camps ic ON c.id = ic.camp_id
+                WHERE ic.itinerary_id = ?
+            ''', (itinerary['id'],)).fetchall()
+            
+            has_showers = any(camp['has_showers'] for camp in camps)
+            if has_showers:
+                score += 1000  # Significant bonus for having showers
+            else:
+                score -= 1500  # Penalty for no showers when required
+        
+        # Check for layovers if required
+        if crew_prefs.get('layovers_required', False):
+            # Get camps to check for layovers
+            layovers = conn.execute('''
+                SELECT ic.is_layover
+                FROM itinerary_camps ic
+                WHERE ic.itinerary_id = ? AND ic.is_layover = 1
+            ''', (itinerary['id'],)).fetchall()
+            
+            has_layovers = len(layovers) > 0
+            if has_layovers:
+                score += 800  # Bonus for having layovers
+            else:
+                score -= 1200  # Penalty for no layovers when required
         
         return score
 
@@ -735,6 +785,9 @@ def save_preferences():
                 programs_important = ?,
                 adult_program_weight_enabled = ?,
                 adult_program_weight_percent = ?,
+                max_dry_camps = ?,
+                showers_required = ?,
+                layovers_required = ?,
                 updated_at = CURRENT_TIMESTAMP
             WHERE crew_id = ?
         ''', (
@@ -759,6 +812,9 @@ def save_preferences():
             'programs_important' in request.form,
             'adult_program_weight_enabled' in request.form,
             safe_int(request.form.get('adult_program_weight_percent', 50)),
+            safe_int(request.form.get('max_dry_camps')),
+            'showers_required' in request.form,
+            'layovers_required' in request.form,
             crew_id
         ))
     else:
@@ -768,8 +824,8 @@ def save_preferences():
             (crew_id, area_important, area_rank_south, area_rank_central, area_rank_north, area_rank_valle_vidal,
              max_altitude_important, max_altitude_threshold, difficulty_challenging, difficulty_rugged, 
              difficulty_strenuous, difficulty_super_strenuous, climb_baldy, climb_phillips, climb_tooth, 
-             climb_inspiration_point, climb_trail_peak, hike_in_preference, hike_out_preference, programs_important, adult_program_weight_enabled, adult_program_weight_percent)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+             climb_inspiration_point, climb_trail_peak, hike_in_preference, hike_out_preference, programs_important, adult_program_weight_enabled, adult_program_weight_percent, max_dry_camps, showers_required, layovers_required)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         ''', (
             crew_id,
             'area_important' in request.form,
@@ -790,7 +846,12 @@ def save_preferences():
             'climb_trail_peak' in request.form,
             'hike_in_preference' in request.form,
             'hike_out_preference' in request.form,
-            'programs_important' in request.form
+            'programs_important' in request.form,
+            'adult_program_weight_enabled' in request.form,
+            safe_int(request.form.get('adult_program_weight_percent', 50)),
+            safe_int(request.form.get('max_dry_camps')),
+            'showers_required' in request.form,
+            'layovers_required' in request.form
         ))
     
     conn.commit()
