@@ -313,7 +313,7 @@
                     <i class="fas fa-star"></i> Program Importance
                 </div>
                 <div class="card-body">
-                    <div class="form-check">
+                    <div class="form-check mb-3">
                         <input class="form-check-input" type="checkbox" id="programs_important" name="programs_important"
                                {% if preferences and preferences.programs_important %}checked{% endif %}>
                         <label class="form-check-label" for="programs_important">
@@ -321,6 +321,33 @@
                         </label>
                         <div class="form-text">
                             When checked, program scores will have increased weight in the final calculations.
+                        </div>
+                    </div>
+                    
+                    <div class="form-check mb-3">
+                        <input class="form-check-input" type="checkbox" id="adult_program_weight_enabled" name="adult_program_weight_enabled"
+                               {% if preferences and preferences.adult_program_weight_enabled %}checked{% endif %}>
+                        <label class="form-check-label" for="adult_program_weight_enabled">
+                            <strong>Apply partial weight to adult program preferences (age 21+)</strong>
+                        </label>
+                        <div class="form-text">
+                            When checked, program scores from adults will be weighted by the percentage below.
+                        </div>
+                    </div>
+                    
+                    <div id="adult_weight_settings" {% if not preferences or not preferences.adult_program_weight_enabled %}style="display:none;"{% endif %}>
+                        <div class="mb-3">
+                            <label for="adult_program_weight_percent" class="form-label">Adult program weight percentage (0-100%):</label>
+                            <div class="input-group">
+                                <input type="number" class="form-control" id="adult_program_weight_percent" name="adult_program_weight_percent" 
+                                       value="{{ preferences.adult_program_weight_percent if preferences and preferences.adult_program_weight_percent else 50 }}" 
+                                       min="0" max="100" step="1">
+                                <span class="input-group-text">%</span>
+                            </div>
+                            <div class="form-text">
+                                Set the percentage weight to apply to program scores from crew members age 21 and older. 
+                                For example, 50% means adult preferences count for half as much as youth preferences.
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -354,6 +381,12 @@
     // Show/hide altitude settings based on importance checkbox
     document.getElementById('max_altitude_important').addEventListener('change', function() {
         const settings = document.getElementById('altitude_settings');
+        settings.style.display = this.checked ? 'block' : 'none';
+    });
+
+    // Show/hide adult program weight settings based on checkbox
+    document.getElementById('adult_program_weight_enabled').addEventListener('change', function() {
+        const settings = document.getElementById('adult_weight_settings');
         settings.style.display = this.checked ? 'block' : 'none';
     });
 </script>

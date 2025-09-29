@@ -244,11 +244,22 @@ class PhilmontScorer:
         """Calculate program scores using specified method (Total, Average, Median, Mode)"""
         conn = get_db_connection()
         
-        # Get all program scores for the crew
+        # Get crew preferences for adult program weighting
+        prefs = conn.execute('''
+            SELECT adult_program_weight_enabled, adult_program_weight_percent
+            FROM crew_preferences
+            WHERE crew_id = ?
+        ''', (self.crew_id,)).fetchone()
+        
+        adult_weight_enabled = prefs['adult_program_weight_enabled'] if prefs else False
+        adult_weight_percent = prefs['adult_program_weight_percent'] if prefs else 100
+        
+        # Get all program scores for the crew with member ages
         scores = conn.execute('''
-            SELECT p.id, p.name, ps.score
+            SELECT p.id, p.name, ps.score, cm.age
             FROM programs p
             JOIN program_scores ps ON p.id = ps.program_id
+            JOIN crew_members cm ON ps.crew_member_id = cm.id
             WHERE ps.crew_id = ?
             ORDER BY p.id, ps.crew_member_id
         ''', (self.crew_id,)).fetchall()
@@ -260,6 +271,11 @@ class PhilmontScorer:
         for score in scores:
             program_id = score['id']
             score_value = score['score']
+            member_age = score['age']
+            
+            # Apply adult program weight if enabled and member is over 20
+            if adult_weight_enabled and member_age > 20:
+                score_value = score_value * (adult_weight_percent / 100.0)
             
             if current_program != program_id:
                 if current_program is not None and current_scores:
@@ -717,6 +733,8 @@ def save_preferences():
                 hike_in_preference = ?,
                 hike_out_preference = ?,
                 programs_important = ?,
+                adult_program_weight_enabled = ?,
+                adult_program_weight_percent = ?,
                 updated_at = CURRENT_TIMESTAMP
             WHERE crew_id = ?
         ''', (
@@ -739,6 +757,8 @@ def save_preferences():
             'hike_in_preference' in request.form,
             'hike_out_preference' in request.form,
             'programs_important' in request.form,
+            'adult_program_weight_enabled' in request.form,
+            safe_int(request.form.get('adult_program_weight_percent', 50)),
             crew_id
         ))
     else:
@@ -748,8 +768,8 @@ def save_preferences():
             (crew_id, area_important, area_rank_south, area_rank_central, area_rank_north, area_rank_valle_vidal,
              max_altitude_important, max_altitude_threshold, difficulty_challenging, difficulty_rugged, 
              difficulty_strenuous, difficulty_super_strenuous, climb_baldy, climb_phillips, climb_tooth, 
-             climb_inspiration_point, climb_trail_peak, hike_in_preference, hike_out_preference, programs_important)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+             climb_inspiration_point, climb_trail_peak, hike_in_preference, hike_out_preference, programs_important, adult_program_weight_enabled, adult_program_weight_percent)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         ''', (
             crew_id,
             'area_important' in request.form,
