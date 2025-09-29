@@ -222,6 +222,9 @@
             <a href="{{ url_for('scores') }}" class="btn btn-outline-primary">
                 <i class="fas fa-arrow-left"></i> Back to Scores
             </a>
+            <a href="{{ url_for('program_chart', crew_id=selected_crew_id, method=calculation_method) }}" class="btn btn-outline-info">
+                <i class="fas fa-chart-bar"></i> Program Chart
+            </a>
             <button class="btn btn-success" onclick="window.print()">
                 <i class="fas fa-print"></i> Print Results
             </button>

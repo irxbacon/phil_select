@@ -82,6 +82,11 @@
                             <i class="fas fa-trophy"></i> Results
                         </a>
                     </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="{{ url_for('program_chart', crew_id=selected_crew_id) if selected_crew_id else url_for('program_chart') }}">
+                            <i class="fas fa-chart-bar"></i> Program Chart
+                        </a>
+                    </li>
                     {% if is_admin %}
                     <li class="nav-item">
                         <a class="nav-link" href="{{ url_for('admin', crew_id=selected_crew_id) if selected_crew_id else url_for('admin') }}">

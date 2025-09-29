@@ -1039,6 +1039,68 @@ def results():
                          crews=crews,
                          selected_crew_id=crew_id)
 
+@app.route('/program_chart')
+@login_required
+def program_chart():
+    """Program scoring chart page"""
+    # Get appropriate crew_id based on user permissions
+    crew_id = get_user_crew_id()
+    method = request.args.get('method', 'Total')
+    
+    # For admin users, allow crew_id override and remember choice
+    if is_admin():
+        requested_crew_id = request.args.get('crew_id', type=int)
+        if requested_crew_id:
+            crew_id = requested_crew_id
+            session['admin_crew_id'] = crew_id
+    
+    if not crew_id:
+        flash('No crew available. Contact administrator.', 'error')
+        return redirect(url_for('logout'))
+    
+    conn = get_db_connection()
+    
+    # Verify crew access permission
+    user = get_current_user()
+    if not user['is_admin'] and user['crew_id'] != crew_id:
+        flash('Access denied to that crew.', 'error')
+        return redirect(url_for('program_chart'))
+    
+    if is_admin():
+        # Admin sees all crews
+        crews = conn.execute('SELECT * FROM crews ORDER BY crew_name').fetchall()
+    else:
+        # Regular user sees only their crew
+        crews = conn.execute('SELECT * FROM crews WHERE id = ?', (crew_id,)).fetchall()
+    
+    # Get program scores
+    scorer = PhilmontScorer(crew_id)
+    program_scores = scorer.get_program_scores(method)
+    
+    # Get program names and create chart data
+    programs = conn.execute('SELECT id, name FROM programs ORDER BY name').fetchall()
+    
+    chart_data = []
+    for program in programs:
+        score = program_scores.get(program['id'], 0)
+        chart_data.append({
+            'id': program['id'],
+            'name': program['name'],
+            'score': score
+        })
+    
+    # Sort by score (descending)
+    chart_data.sort(key=lambda x: x['score'], reverse=True)
+    
+    conn.close()
+    
+    return render_template('program_chart.html',
+                         chart_data=chart_data,
+                         method=method,
+                         crews=crews,
+                         selected_crew_id=crew_id,
+                         is_admin=is_admin())
+
 @app.route('/api/calculate')
 def api_calculate():
     """API endpoint to recalculate scores"""
