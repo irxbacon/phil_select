@@ -23,7 +23,11 @@
                 <div class="card-body">
                     {% if crew %}
                         <p><strong>Crew Name:</strong> {{ crew.crew_name or 'Sample Crew' }}</p>
-                        <p><strong>Crew Size:</strong> {{ crew_members|length }} members</p>
+                        <p><strong>Crew Size:</strong> {{ crew_members|length }} members
+                        {% if avg_skill_score %}
+                            | <strong>Avg Skill:</strong> {{ avg_skill_score }}
+                        {% endif %}
+                        </p>
                         <p><strong>Members:</strong></p>
                         {% if crew_members %}
                         <div class="list-group list-group-flush">

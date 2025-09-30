@@ -1,19 +1,20 @@
 #!/usr/bin/env python3
 
+import argparse
+import sqlite3
+from functools import wraps
+
+import bcrypt
 from flask import (
     Flask,
-    render_template,
-    request,
-    redirect,
-    url_for,
     flash,
     jsonify,
+    redirect,
+    render_template,
+    request,
     session,
+    url_for,
 )
-import sqlite3
-import bcrypt
-from functools import wraps
-import argparse
 
 app = Flask(__name__)
 app.config["SECRET_KEY"] = "philmont-trek-selection-2025"
@@ -754,7 +755,7 @@ def login():
                     flash("Successfully logged in as admin", "success")
                     return redirect(url_for("admin"))
                 else:
-                    flash(f'Welcome back, {user["username"]}!', "success")
+                    flash(f"Welcome back, {user['username']}!", "success")
                     # Redirect to preferences for their crew
                     return redirect(url_for("preferences", crew_id=user["crew_id"]))
             else:
@@ -877,6 +878,17 @@ def preferences():
 
     crew, crew_members, preferences = get_crew_info(crew_id)
 
+    # Calculate average skill score
+    avg_skill_score = None
+    if crew_members:
+        skill_scores = [
+            member["skill_level"]
+            for member in crew_members
+            if member["skill_level"] is not None
+        ]
+        if skill_scores:
+            avg_skill_score = round(sum(skill_scores) / len(skill_scores), 1)
+
     return render_template(
         "preferences.html",
         crew=crew,
@@ -884,6 +896,7 @@ def preferences():
         preferences=preferences,
         crews=crews,
         selected_crew_id=crew_id,
+        avg_skill_score=avg_skill_score,
     )
 
 
@@ -1425,7 +1438,7 @@ def submit_survey():
 
         # Insert new scores
         for program in programs:
-            score_value = safe_int(request.form.get(f'program_{program["id"]}', 10))
+            score_value = safe_int(request.form.get(f"program_{program['id']}", 10))
             if score_value is not None:
                 conn.execute(
                     """
