@@ -55,16 +55,10 @@
                     <!-- New Member Information -->
                     <div id="new_member_section">
                         <div class="row">
-                            <div class="col-md-6">
+                            <div class="col-12">
                                 <div class="mb-3">
                                     <label for="name" class="form-label">Full Name *</label>
                                     <input type="text" class="form-control" id="name" name="name" required>
-                                </div>
-                            </div>
-                            <div class="col-md-6">
-                                <div class="mb-3">
-                                    <label for="email" class="form-label">Email Address *</label>
-                                    <input type="email" class="form-control" id="email" name="email" required>
                                 </div>
                             </div>
                         </div>
@@ -167,27 +161,43 @@ function toggleMemberFields() {
     const existingSection = document.getElementById('existing_member_section');
     const newSection = document.getElementById('new_member_section');
     const nameField = document.getElementById('name');
-    const emailField = document.getElementById('email');
     
     if (existingSelected) {
         existingSection.style.display = 'block';
         newSection.style.display = 'none';
         nameField.required = false;
-        emailField.required = false;
         loadCrewMembers();
     } else {
         existingSection.style.display = 'none';
         newSection.style.display = 'block';
         nameField.required = true;
-        emailField.required = true;
         // Clear existing member selection
         document.getElementById('existing_member_id').value = '';
     }
 }
 
-// function loadCrewMembers() {
-//     // Removed crew selection functionality
-// }
+function loadCrewMembers() {
+    // Load crew members from crew 1 (the only crew)
+    fetch('/api/crew_members/1')
+        .then(response => response.json())
+        .then(members => {
+            const select = document.getElementById('existing_member_id');
+            select.innerHTML = '<option value="">Select your name...</option>';
+            
+            members.forEach(member => {
+                const option = document.createElement('option');
+                option.value = member.id;
+                option.textContent = member.name || `Member ${member.id}`;
+                option.dataset.name = member.name || '';
+                option.dataset.age = member.age || '';
+                option.dataset.skillLevel = member.skill_level || '3';
+                select.appendChild(option);
+            });
+        })
+        .catch(error => {
+            console.error('Error loading crew members:', error);
+        });
+}
 
 function fillMemberInfo() {
     const memberSelect = document.getElementById('existing_member_id');
@@ -196,7 +206,6 @@ function fillMemberInfo() {
     if (selectedOption && selectedOption.value) {
         // Fill in the form fields with the selected member's info
         document.getElementById('name').value = selectedOption.dataset.name || '';
-        document.getElementById('email').value = selectedOption.dataset.email || '';
         document.getElementById('age').value = selectedOption.dataset.age || '';
         document.getElementById('skill_level').value = selectedOption.dataset.skillLevel || '3';
     }

@@ -74,7 +74,6 @@
                             <tr>
                                 <th>#</th>
                                 <th>Name</th>
-                                <th>Email</th>
                                 <th>Age</th>
                                 <th>Experience Level</th>
                                 <th>Survey Status</th>
@@ -88,9 +87,7 @@
                                 <td>
                                     <strong>{{ member.name or 'Not Set' }}</strong>
                                 </td>
-                                <td>
-                                    <span class="text-muted">{{ member.email or 'Not Set' }}</span>
-                                </td>
+
                                 <td>{{ member.age or '-' }}</td>
                                 <td>
                                     {% if member.skill_level %}
@@ -112,7 +109,7 @@
                                 </td>
                                 <td>
                                     <button class="btn btn-sm btn-outline-primary me-1" 
-                                            onclick="editMember({{ member.id }}, '{{ member.name }}', '{{ member.email }}', {{ member.age or 'null' }}, {{ member.skill_level or '3' }})">
+                                            onclick="editMember({{ member.id }}, '{{ member.name }}', '', {{ member.age or 'null' }}, {{ member.skill_level or '3' }})">
                                         <i class="fas fa-edit"></i>
                                     </button>
                                     <button class="btn btn-sm btn-outline-danger" 
@@ -153,10 +150,7 @@
                         <label for="add_name" class="form-label">Full Name *</label>
                         <input type="text" class="form-control" id="add_name" name="name" required>
                     </div>
-                    <div class="mb-3">
-                        <label for="add_email" class="form-label">Email Address</label>
-                        <input type="email" class="form-control" id="add_email" name="email">
-                    </div>
+
                     <div class="row">
                         <div class="col-md-6">
                             <div class="mb-3">
@@ -203,10 +197,7 @@
                         <label for="edit_name" class="form-label">Full Name *</label>
                         <input type="text" class="form-control" id="edit_name" name="name" required>
                     </div>
-                    <div class="mb-3">
-                        <label for="edit_email" class="form-label">Email Address</label>
-                        <input type="email" class="form-control" id="edit_email" name="email">
-                    </div>
+
                     <div class="row">
                         <div class="col-md-6">
                             <div class="mb-3">
@@ -294,7 +285,6 @@
 function editMember(id, name, email, age, skillLevel) {
     document.getElementById('edit_member_id').value = id;
     document.getElementById('edit_name').value = name || '';
-    document.getElementById('edit_email').value = email || '';
     document.getElementById('edit_age').value = age || '';
     document.getElementById('edit_skill_level').value = skillLevel || '3';
     new bootstrap.Modal(document.getElementById('editMemberModal')).show();
