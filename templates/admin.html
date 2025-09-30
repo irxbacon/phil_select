@@ -91,7 +91,7 @@
                                 <td>{{ member.age or '-' }}</td>
                                 <td>
                                     {% if member.skill_level %}
-                                        <span class="badge bg-info">{{ member.skill_level }}/5</span>
+                                        <span class="badge bg-info">{{ member.skill_level }}/10</span>
                                     {% else %}
                                         <span class="badge bg-light text-dark">Not Set</span>
                                     {% endif %}
@@ -109,7 +109,7 @@
                                 </td>
                                 <td>
                                     <button class="btn btn-sm btn-outline-primary me-1" 
-                                            onclick="editMember({{ member.id }}, '{{ member.name }}', '', {{ member.age or 'null' }}, {{ member.skill_level or '3' }})">
+                                            onclick="editMember({{ member.id }}, '{{ member.name }}', '', {{ member.age or 'null' }}, {{ member.skill_level or '6' }})">
                                         <i class="fas fa-edit"></i>
                                     </button>
                                     <button class="btn btn-sm btn-outline-danger" 
@@ -162,11 +162,16 @@
                             <div class="mb-3">
                                 <label for="add_skill_level" class="form-label">Experience Level</label>
                                 <select class="form-select" id="add_skill_level" name="skill_level">
-                                    <option value="1">Beginner (1)</option>
-                                    <option value="2">Some Experience (2)</option>
-                                    <option value="3" selected>Moderate (3)</option>
-                                    <option value="4">Experienced (4)</option>
-                                    <option value="5">Expert (5)</option>
+                                    <option value="1">1</option>
+                                    <option value="2">Beginner (2)</option>
+                                    <option value="3">3</option>
+                                    <option value="4">Some Experience (4)</option>
+                                    <option value="5">5</option>
+                                    <option value="6" selected>Moderate (6)</option>
+                                    <option value="7">7</option>
+                                    <option value="8">Experienced (8)</option>
+                                    <option value="9">9</option>
+                                    <option value="10">Expert (10)</option>
                                 </select>
                             </div>
                         </div>
@@ -209,11 +214,16 @@
                             <div class="mb-3">
                                 <label for="edit_skill_level" class="form-label">Experience Level</label>
                                 <select class="form-select" id="edit_skill_level" name="skill_level">
-                                    <option value="1">Beginner (1)</option>
-                                    <option value="2">Some Experience (2)</option>
-                                    <option value="3">Moderate (3)</option>
-                                    <option value="4">Experienced (4)</option>
-                                    <option value="5">Expert (5)</option>
+                                    <option value="1">1</option>
+                                    <option value="2">Beginner (2)</option>
+                                    <option value="3">3</option>
+                                    <option value="4">Some Experience (4)</option>
+                                    <option value="5">5</option>
+                                    <option value="6">Moderate (6)</option>
+                                    <option value="7">7</option>
+                                    <option value="8">Experienced (8)</option>
+                                    <option value="9">9</option>
+                                    <option value="10">Expert (10)</option>
                                 </select>
                             </div>
                         </div>
@@ -286,7 +296,7 @@ function editMember(id, name, email, age, skillLevel) {
     document.getElementById('edit_member_id').value = id;
     document.getElementById('edit_name').value = name || '';
     document.getElementById('edit_age').value = age || '';
-    document.getElementById('edit_skill_level').value = skillLevel || '3';
+    document.getElementById('edit_skill_level').value = skillLevel || '6';
     new bootstrap.Modal(document.getElementById('editMemberModal')).show();
 }
 
