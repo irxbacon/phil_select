@@ -28,6 +28,42 @@
         </div>
     </div>
 
+    <div class="row mb-3">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <i class="fas fa-calculator"></i> Quick Actions
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <h6>Bulk Actions:</h6>
+                            <div class="btn-group" role="group">
+                                <button type="button" class="btn btn-outline-secondary btn-sm" onclick="fillRandomScores()">
+                                    <i class="fas fa-random"></i> Random Scores
+                                </button>
+                                <button type="button" class="btn btn-outline-warning btn-sm" onclick="clearAllScores()">
+                                    <i class="fas fa-eraser"></i> Clear All
+                                </button>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <h6>Navigation:</h6>
+                            <div class="btn-group" role="group">
+                                <a href="{{ url_for('preferences') }}" class="btn btn-outline-primary btn-sm">
+                                    <i class="fas fa-arrow-left"></i> Back to Preferences
+                                </a>
+                                <a href="{{ url_for('results') }}" class="btn btn-outline-success btn-sm">
+                                    Results <i class="fas fa-arrow-right"></i>
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <div class="table-responsive">
         <table class="table table-striped table-hover">
             <thead class="table-dark">
@@ -84,41 +120,7 @@
         </table>
     </div>
 
-    <div class="row">
-        <div class="col-12">
-            <div class="card">
-                <div class="card-header">
-                    <i class="fas fa-calculator"></i> Quick Actions
-                </div>
-                <div class="card-body">
-                    <div class="row">
-                        <div class="col-md-6">
-                            <h6>Bulk Actions:</h6>
-                            <div class="btn-group" role="group">
-                                <button type="button" class="btn btn-outline-secondary btn-sm" onclick="fillRandomScores()">
-                                    <i class="fas fa-random"></i> Random Scores
-                                </button>
-                                <button type="button" class="btn btn-outline-warning btn-sm" onclick="clearAllScores()">
-                                    <i class="fas fa-eraser"></i> Clear All
-                                </button>
-                            </div>
-                        </div>
-                        <div class="col-md-6">
-                            <h6>Navigation:</h6>
-                            <div class="btn-group" role="group">
-                                <a href="{{ url_for('preferences') }}" class="btn btn-outline-primary btn-sm">
-                                    <i class="fas fa-arrow-left"></i> Back to Preferences
-                                </a>
-                                <a href="{{ url_for('results') }}" class="btn btn-outline-success btn-sm">
-                                    Results <i class="fas fa-arrow-right"></i>
-                                </a>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
+
 
     <div class="row mt-4">
         <div class="col-12">

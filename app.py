@@ -13,6 +13,7 @@ from flask import (
 import sqlite3
 import bcrypt
 from functools import wraps
+import argparse
 
 app = Flask(__name__)
 app.config["SECRET_KEY"] = "philmont-trek-selection-2025"
@@ -1071,11 +1072,8 @@ def scores():
 @app.route("/scores", methods=["POST"])
 def save_scores():
     """Save program scores"""
-    # Get crew_id from form data
-    crew_id = request.form.get("crew_id", type=int)
-    if not crew_id:
-        flash("Please select a crew.", "error")
-        return redirect(url_for("scores"))
+    # Always use crew ID 1 for scores
+    crew_id = 1
 
     # Verify crew access permission
     # No authentication required - access allowed
@@ -2169,4 +2167,16 @@ def toggle_user_active(user_id):
 #     return redirect(url_for('view_contingent', contingent_id=contingent_id))
 
 if __name__ == "__main__":
-    app.run(debug=True, port=5002)
+    parser = argparse.ArgumentParser(description="Philmont Trek Selection Application")
+    parser.add_argument(
+        "--debug", action="store_true", help="Run Flask app in debug mode"
+    )
+    parser.add_argument(
+        "--port",
+        type=int,
+        default=5002,
+        help="Port to run the Flask app on (default: 5002)",
+    )
+    args = parser.parse_args()
+
+    app.run(debug=args.debug, port=args.port)
