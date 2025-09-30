@@ -49,24 +49,31 @@ def get_current_user():
 
 def get_user_crew_id():
     """Get the crew_id that the current user should see"""
-    user = get_current_user()
-    if user:
-        if user['is_admin']:
-            # Admin can see any crew via query parameter or session
-            return request.args.get('crew_id', type=int) or session.get('admin_crew_id')
-        else:
-            # Regular users can only see their assigned crew
-            return user['crew_id']
-    return None
+    # Since login is not required, return the first crew or crew from query parameter  
+    crew_id = request.args.get('crew_id', type=int)
+    if crew_id:
+        return crew_id
+    
+    # Return first available crew as default
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    cursor.execute("SELECT id FROM crews ORDER BY id LIMIT 1")
+    result = cursor.fetchone()
+    conn.close()
+    
+    if result:
+        return result['id']
+    return 1  # Fallback to crew id 1
 
 def is_admin():
     """Check if current user is admin"""
-    user = get_current_user()
-    return user and user['is_admin']
+    # Since login is not required, treat everyone as admin
+    return True
 
 def is_authenticated():
     """Check if user is authenticated (either admin or regular user)"""
-    return get_current_user() is not None
+    # Since login is not required, everyone is considered authenticated
+    return True
 
 def login_required(f):
     """Decorator to require any authentication"""
@@ -695,10 +702,6 @@ def api_crews():
 @app.route('/')
 def index():
     """Home page"""
-    # Check if user is authenticated
-    if not is_authenticated():
-        return redirect(url_for('login'))
-    
     # Get appropriate crew_id based on user permissions
     crew_id = get_user_crew_id()
     
@@ -727,7 +730,6 @@ def index():
                          selected_crew_id=crew_id)
 
 @app.route('/preferences')
-@login_required
 def preferences():
     """Crew preferences page"""
     # Get appropriate crew_id based on user permissions
@@ -746,11 +748,7 @@ def preferences():
     
     conn = get_db_connection()
     
-    # Verify crew access permission
-    user = get_current_user()
-    if not user['is_admin'] and user['crew_id'] != crew_id:
-        flash('Access denied to that crew.', 'error')
-        return redirect(url_for('preferences'))
+    # No authentication required - access allowed
     
     if is_admin():
         # Admin sees all crews
@@ -771,7 +769,6 @@ def preferences():
                          selected_crew_id=crew_id)
 
 @app.route('/preferences', methods=['POST'])
-@login_required
 def save_preferences():
     """Save crew preferences"""
     # Get crew_id from form data
@@ -780,11 +777,7 @@ def save_preferences():
         flash('Please select a crew.', 'error')
         return redirect(url_for('preferences'))
     
-    # Verify crew access permission
-    user = get_current_user()
-    if not user['is_admin'] and user['crew_id'] != crew_id:
-        flash('Access denied to that crew.', 'error')
-        return redirect(url_for('preferences'))
+    # No authentication required - access allowed
     
     conn = get_db_connection()
     
@@ -907,7 +900,6 @@ def save_preferences():
     return redirect(url_for('preferences', crew_id=crew_id))
 
 @app.route('/scores')
-@login_required
 def scores():
     """Program scoring page"""
     # Get appropriate crew_id based on user permissions
@@ -926,11 +918,7 @@ def scores():
     
     conn = get_db_connection()
     
-    # Verify crew access permission
-    user = get_current_user()
-    if not user['is_admin'] and user['crew_id'] != crew_id:
-        flash('Access denied to that crew.', 'error')
-        return redirect(url_for('scores'))
+    # No authentication required - access allowed
     
     if is_admin():
         # Admin sees all crews
@@ -954,7 +942,6 @@ def scores():
                          selected_crew_id=crew_id)
 
 @app.route('/scores', methods=['POST'])
-@login_required
 def save_scores():
     """Save program scores"""
     # Get crew_id from form data
@@ -964,10 +951,7 @@ def save_scores():
         return redirect(url_for('scores'))
     
     # Verify crew access permission
-    user = get_current_user()
-    if not user['is_admin'] and user['crew_id'] != crew_id:
-        flash('Access denied to that crew.', 'error')
-        return redirect(url_for('scores'))
+    # No authentication required - access allowed
     
     conn = get_db_connection()
     
@@ -998,7 +982,6 @@ def save_scores():
     return redirect(url_for('scores', crew_id=crew_id))
 
 @app.route('/results')
-@login_required
 def results():
     """Results and rankings page"""
     # Get appropriate crew_id based on user permissions
@@ -1018,11 +1001,7 @@ def results():
     
     conn = get_db_connection()
     
-    # Verify crew access permission
-    user = get_current_user()
-    if not user['is_admin'] and user['crew_id'] != crew_id:
-        flash('Access denied to that crew.', 'error')
-        return redirect(url_for('results'))
+    # No authentication required - access allowed
     
     if is_admin():
         # Admin sees all crews
@@ -1048,7 +1027,6 @@ def results():
                          selected_crew_id=crew_id)
 
 @app.route('/program_chart')
-@login_required
 def program_chart():
     """Program scoring chart page"""
     # Get appropriate crew_id based on user permissions
@@ -1068,11 +1046,7 @@ def program_chart():
     
     conn = get_db_connection()
     
-    # Verify crew access permission
-    user = get_current_user()
-    if not user['is_admin'] and user['crew_id'] != crew_id:
-        flash('Access denied to that crew.', 'error')
-        return redirect(url_for('program_chart'))
+    # No authentication required - access allowed
     
     if is_admin():
         # Admin sees all crews
@@ -1183,7 +1157,6 @@ def itinerary_detail(code):
                          camps=camps)
 
 @app.route('/survey')
-@login_required
 def survey():
     """Crew member program survey page"""
     # Get appropriate crew_id based on user permissions
@@ -1206,11 +1179,7 @@ def survey():
     # Get crews for the dropdown
     conn = get_db_connection()
     
-    # Verify crew access permission
-    user = get_current_user()
-    if not user['is_admin'] and user['crew_id'] != crew_id:
-        flash('Access denied to that crew.', 'error')
-        return redirect(url_for('survey'))
+    # No authentication required - access allowed
     
     if is_admin():
         # Admin sees all crews
@@ -1234,7 +1203,6 @@ def survey():
                          selected_crew_id=crew_id)
 
 @app.route('/survey', methods=['POST'])
-@login_required
 def submit_survey():
     """Process crew member program survey submission"""
     # Get crew_id from form and verify access
@@ -1243,11 +1211,7 @@ def submit_survey():
         flash('Please select a crew.', 'error')
         return redirect(url_for('survey'))
     
-    # Verify crew access permission
-    user = get_current_user()
-    if not user['is_admin'] and user['crew_id'] != crew_id:
-        flash('Access denied to that crew.', 'error')
-        return redirect(url_for('survey'))
+    # No authentication required - access allowed
     
     conn = get_db_connection()
     
