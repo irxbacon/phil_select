@@ -96,10 +96,17 @@
                     {% endif %}
                 </ul>
                 <ul class="navbar-nav ms-auto">
-                    {% if is_admin %}
+                    {% if current_user %}
                     <li class="nav-item">
-                        <span class="navbar-text text-success me-3">
-                            <i class="fas fa-user-shield"></i> Admin
+                        <span class="navbar-text me-3">
+                            {% if is_admin %}
+                                <i class="fas fa-user-shield text-success"></i> Admin
+                            {% else %}
+                                <i class="fas fa-user text-primary"></i> {{ current_user.username }}
+                                {% if current_user.crew_name %}
+                                    <small class="text-muted">({{ current_user.crew_name }})</small>
+                                {% endif %}
+                            {% endif %}
                         </span>
                     </li>
                     <li class="nav-item">
@@ -110,7 +117,7 @@
                     {% else %}
                     <li class="nav-item">
                         <a class="nav-link" href="{{ url_for('login') }}">
-                            <i class="fas fa-sign-in-alt"></i> Admin Login
+                            <i class="fas fa-sign-in-alt"></i> Login
                         </a>
                     </li>
                     {% endif %}
