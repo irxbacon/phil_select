@@ -23,13 +23,51 @@
                 <div class="card-body">
                     {% if crew %}
                         <p><strong>Crew Name:</strong> {{ crew.crew_name or 'Sample Crew' }}</p>
-                        <p><strong>Crew Size:</strong> {{ crew.crew_size }} members</p>
+                        <p><strong>Crew Size:</strong> {{ crew_members|length }} members</p>
                         <p><strong>Members:</strong></p>
-                        <ul class="list-unstyled">
+                        {% if crew_members %}
+                        <div class="list-group list-group-flush">
                             {% for member in crew_members %}
-                            <li><i class="fas fa-user"></i> {{ member.name or ('Crewmember ' + member.member_number|string) }}</li>
+                            <div class="list-group-item d-flex justify-content-between align-items-center p-2">
+                                <span>
+                                    <i class="fas fa-user text-primary"></i> 
+                                    {{ member.name or ('Crewmember ' + member.member_number|string) }}
+                                    {% if member.age %}
+                                        <small class="text-muted">(age {{ member.age }})</small>
+                                    {% endif %}
+                                </span>
+                                <button type="button" class="btn btn-sm btn-outline-danger" 
+                                        onclick="deleteMember({{ member.id }}, '{{ member.name or ('Crewmember ' + member.member_number|string) }}')"
+                                        title="Delete this crew member">
+                                    <i class="fas fa-trash"></i>
+                                </button>
+                            </div>
                             {% endfor %}
-                        </ul>
+                        </div>
+                        <div class="mt-3 d-flex gap-2">
+                            <button type="button" class="btn btn-sm btn-success" 
+                                    data-bs-toggle="modal" data-bs-target="#addMemberModal"
+                                    title="Add a new crew member">
+                                <i class="fas fa-user-plus"></i> Add Member
+                            </button>
+                            <button type="button" class="btn btn-sm btn-outline-warning" 
+                                    onclick="deleteAllMembers()"
+                                    title="Delete all crew members">
+                                <i class="fas fa-trash-alt"></i> Delete All Members
+                            </button>
+                        </div>
+                        {% else %}
+                        <div class="alert alert-info">
+                            <i class="fas fa-info-circle"></i> No crew members found.
+                        </div>
+                        <div class="mt-3">
+                            <button type="button" class="btn btn-sm btn-success" 
+                                    data-bs-toggle="modal" data-bs-target="#addMemberModal"
+                                    title="Add a new crew member">
+                                <i class="fas fa-user-plus"></i> Add Member
+                            </button>
+                        </div>
+                        {% endif %}
                     {% endif %}
                 </div>
             </div>
@@ -418,6 +456,65 @@
         </div>
     </div>
 </form>
+
+<!-- Add Member Modal -->
+<div class="modal fade" id="addMemberModal" tabindex="-1" aria-labelledby="addMemberModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="addMemberModalLabel">
+                    <i class="fas fa-user-plus"></i> Add Crew Member
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form method="POST" action="{{ url_for('add_member') }}" id="addMemberForm">
+                <div class="modal-body">
+                    <input type="hidden" name="crew_id" value="{{ crew.id if crew else '' }}">
+                    <input type="hidden" name="redirect_to" value="preferences">
+                    
+                    <div class="mb-3">
+                        <label for="member_name" class="form-label">Name <span class="text-danger">*</span></label>
+                        <input type="text" class="form-control" id="member_name" name="name" required>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="member_email" class="form-label">Email</label>
+                        <input type="email" class="form-control" id="member_email" name="email">
+                        <div class="form-text">Optional: Used for survey notifications</div>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="member_age" class="form-label">Age</label>
+                                <input type="number" class="form-control" id="member_age" name="age" min="10" max="25">
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="member_skill_level" class="form-label">Skill Level</label>
+                                <select class="form-select" id="member_skill_level" name="skill_level">
+                                    <option value="1">1 - Beginner</option>
+                                    <option value="2">2 - Novice</option>
+                                    <option value="3" selected>3 - Intermediate</option>
+                                    <option value="4">4 - Advanced</option>
+                                    <option value="5">5 - Expert</option>
+                                </select>
+                                <div class="form-text">Hiking and outdoor experience level</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-success">
+                        <i class="fas fa-user-plus"></i> Add Member
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
 {% endblock %}
 
 {% block scripts %}
@@ -439,5 +536,61 @@
         const settings = document.getElementById('adult_weight_settings');
         settings.style.display = this.checked ? 'block' : 'none';
     });
+
+    // Delete individual crew member
+    function deleteMember(memberId, memberName) {
+        if (confirm(`Are you sure you want to delete ${memberName}? This will also delete all their program scores.`)) {
+            // Create a form to submit the delete request
+            const form = document.createElement('form');
+            form.method = 'POST';
+            form.action = '{{ url_for("delete_member") }}';
+            
+            const memberIdInput = document.createElement('input');
+            memberIdInput.type = 'hidden';
+            memberIdInput.name = 'member_id';
+            memberIdInput.value = memberId;
+            
+            const crewIdInput = document.createElement('input');
+            crewIdInput.type = 'hidden';
+            crewIdInput.name = 'crew_id';
+            crewIdInput.value = '{{ crew.id if crew else "" }}';
+            
+            const redirectInput = document.createElement('input');
+            redirectInput.type = 'hidden';
+            redirectInput.name = 'redirect_to';
+            redirectInput.value = 'preferences';
+            
+            form.appendChild(memberIdInput);
+            form.appendChild(crewIdInput);
+            form.appendChild(redirectInput);
+            document.body.appendChild(form);
+            form.submit();
+        }
+    }
+
+    // Delete all crew members
+    function deleteAllMembers() {
+        const memberCount = {{ crew_members|length }};
+        if (memberCount === 0) {
+            alert('No crew members to delete.');
+            return;
+        }
+        
+        if (confirm(`Are you sure you want to delete ALL ${memberCount} crew members? This will also delete all their program scores and cannot be undone.`)) {
+            // Create a form to submit the delete all request
+            const form = document.createElement('form');
+            form.method = 'POST';
+            form.action = '{{ url_for("delete_all_members") }}';
+            
+            const crewIdInput = document.createElement('input');
+            crewIdInput.type = 'hidden';
+            crewIdInput.name = 'crew_id';
+            crewIdInput.value = '{{ crew.id if crew else "" }}';
+            
+            form.appendChild(crewIdInput);
+            document.body.appendChild(form);
+            form.submit();
+        }
+    }
 </script>
 {% endblock %}

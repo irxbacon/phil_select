@@ -1445,9 +1445,12 @@ def add_member():
     email = request.form.get('email', '').strip()
     age = request.form.get('age', type=int)
     skill_level = request.form.get('skill_level', 3, type=int)
+    redirect_to = request.form.get('redirect_to', 'admin')  # Default to admin for backward compatibility
     
     if not crew_id or not name:
         flash('Crew and name are required.', 'error')
+        if redirect_to == 'preferences':
+            return redirect(url_for('preferences'))
         return redirect(url_for('admin', crew_id=crew_id))
     
     conn = get_db_connection()
@@ -1480,6 +1483,9 @@ def add_member():
     finally:
         conn.close()
     
+    # Redirect based on the source page
+    if redirect_to == 'preferences':
+        return redirect(url_for('preferences'))
     return redirect(url_for('admin', crew_id=crew_id))
 
 @app.route('/admin/edit_member', methods=['POST'])
@@ -1527,9 +1533,12 @@ def delete_member():
     """Delete a crew member and all associated data"""
     member_id = request.form.get('member_id', type=int)
     crew_id = request.form.get('crew_id', type=int)
+    redirect_to = request.form.get('redirect_to', 'admin')  # Default to admin for backward compatibility
     
     if not member_id:
         flash('Member ID is required.', 'error')
+        if redirect_to == 'preferences':
+            return redirect(url_for('preferences'))
         return redirect(url_for('admin', crew_id=crew_id))
     
     conn = get_db_connection()
@@ -1559,7 +1568,52 @@ def delete_member():
     finally:
         conn.close()
     
+    # Redirect based on the source page
+    if redirect_to == 'preferences':
+        return redirect(url_for('preferences'))
     return redirect(url_for('admin', crew_id=crew_id))
+
+@app.route('/admin/delete_all_members', methods=['POST'])
+def delete_all_members():
+    """Delete all crew members and their associated data"""
+    crew_id = request.form.get('crew_id', type=int)
+    
+    if not crew_id:
+        flash('Crew ID is required.', 'error')
+        return redirect(url_for('preferences'))
+    
+    conn = get_db_connection()
+    
+    try:
+        # Get count of members to be deleted for feedback
+        member_count = conn.execute('SELECT COUNT(*) as count FROM crew_members WHERE crew_id = ?', (crew_id,)).fetchone()['count']
+        
+        if member_count == 0:
+            flash('No crew members to delete.', 'info')
+            return redirect(url_for('preferences'))
+        
+        # Delete program scores first (foreign key constraint)
+        conn.execute('DELETE FROM program_scores WHERE crew_id = ?', (crew_id,))
+        
+        # Delete all crew members for this crew
+        conn.execute('DELETE FROM crew_members WHERE crew_id = ?', (crew_id,))
+        
+        conn.commit()
+        
+        # Recalculate crew scores after all member deletion (will result in no scores)
+        try:
+            recalculate_crew_scores(crew_id)
+            flash(f'All {member_count} crew members deleted successfully! All program scores have been cleared.', 'success')
+        except Exception as e:
+            flash(f'All crew members deleted, but there was an issue updating crew scores: {str(e)}', 'warning')
+        
+    except Exception as e:
+        conn.rollback()
+        flash(f'Error deleting crew members: {str(e)}', 'error')
+    finally:
+        conn.close()
+    
+    return redirect(url_for('preferences'))
 
 # ===================================
 # User Management Routes (Admin Only)
