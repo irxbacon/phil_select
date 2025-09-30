@@ -1,0 +1,18 @@
+# Global ownership - Repository owner reviews all changes
+* @bcox-ctv
+
+# Critical application files require owner review
+app.py @bcox-ctv
+schema.sql @bcox-ctv
+requirements.txt @bcox-ctv
+
+# Database scripts and configuration require owner review
+*.sql @bcox-ctv
+config.json @bcox-ctv
+
+# GitHub configuration requires owner review
+.github/ @bcox-ctv
+
+# Documentation changes require owner review
+*.md @bcox-ctv
+README.md @bcox-ctv
