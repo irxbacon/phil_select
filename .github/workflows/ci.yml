@@ -70,8 +70,8 @@ jobs:
       run: |
         bandit -r . -f json -o bandit-report.json || true
         bandit -r . --severity-level medium
-    
-    - name: Check for known security vulnerabilities
-      run: |
-        pip install -r requirements.txt
-        safety scan
+    - name: pyupio/safety-action
+      uses: pyupio/safety-action@v1.0.1
+      with:
+        api-key: ${{ secrets.SAFETY_API_KEY }}
+        args: --detailed-output # To always see detailed output from this action
