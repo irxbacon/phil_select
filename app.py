@@ -293,7 +293,7 @@ class PhilmontScorer:
         self._scoring_factors.setdefault("maxDifficult", 1000.0)
         self._scoring_factors.setdefault("maxSkill", 4000.0)
         self._scoring_factors.setdefault("skillDelta", 1.0)
-        self._scoring_factors.setdefault("mileageFactor", 1.0)
+        self._scoring_factors.setdefault("mileageFactor", 100.0)
         self._scoring_factors.setdefault("minDifficult", 500.0)
 
         # Load skill level difficulty factor lookup table (from Excel Tables sheet)
@@ -528,10 +528,9 @@ class PhilmontScorer:
 
     def _calculate_distance_score(self, itinerary, crew_prefs):
         """Calculate distance-based score"""
-        distance = itinerary["distance"] or 50
-        base_score = max(
-            0, 100 - abs(distance - 50)
-        )  # Prefer distances around 50 miles
+        distance = itinerary["distance"] if itinerary["distance"] is not None else 50
+        # base_score = max(0, 100 - abs(distance - 50))  # Prefer distances around 50 miles
+        base_score = distance  # This seems to be what the spreadsheet is really doing
         mileage_factor = self.get_score_factor("mileageFactor")
         return base_score * mileage_factor
 
@@ -1352,7 +1351,7 @@ def submit_survey():
     name = request.form.get("name", "").strip()
     email = request.form.get("email", "").strip()
     age = safe_int(request.form.get("age"))
-    skill_level = safe_int(request.form.get("skill_level", 3))
+    skill_level = safe_int(request.form.get("skill_level", 6))
 
     # Validate required fields based on member type
     # crew_id is hardcoded to 1, no validation needed
@@ -1597,7 +1596,7 @@ def add_member():
     name = request.form.get("name", "").strip()
     email = request.form.get("email", "").strip()
     age = request.form.get("age", type=int)
-    skill_level = request.form.get("skill_level", 3, type=int)
+    skill_level = request.form.get("skill_level", 6, type=int)
     redirect_to = request.form.get(
         "redirect_to", "admin"
     )  # Default to admin for backward compatibility
@@ -1655,7 +1654,7 @@ def edit_member():
     name = request.form.get("name", "").strip()
     email = request.form.get("email", "").strip()
     age = request.form.get("age", type=int)
-    skill_level = request.form.get("skill_level", 3, type=int)
+    skill_level = request.form.get("skill_level", 6, type=int)
 
     if not member_id or not name:
         flash("Member ID and name are required.", "error")

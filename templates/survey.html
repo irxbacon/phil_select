@@ -76,11 +76,16 @@
                             <div class="mb-3">
                                 <label for="skill_level" class="form-label">Overall Outdoor Experience</label>
                                 <select class="form-select" id="skill_level" name="skill_level">
-                                    <option value="1">Beginner (1)</option>
-                                    <option value="2">Some Experience (2)</option>
-                                    <option value="3" selected>Moderate Experience (3)</option>
-                                    <option value="4">Experienced (4)</option>
-                                    <option value="5">Expert (5)</option>
+                                    <option value="1">1</option>
+                                    <option value="2">Beginner (2)</option>
+                                    <option value="3">3</option>
+                                    <option value="4">Some Experience (4)</option>
+                                    <option value="5">5</option>
+                                    <option value="6" selected>Moderate Experience (6)</option>
+                                    <option value="7">7</option>
+                                    <option value="8">Experienced (8)</option>
+                                    <option value="9">9</option>
+                                    <option value="10">Expert (10)</option>
                                 </select>
                             </div>
                         </div>
@@ -190,7 +195,7 @@ function loadCrewMembers() {
                 option.textContent = member.name || `Member ${member.id}`;
                 option.dataset.name = member.name || '';
                 option.dataset.age = member.age || '';
-                option.dataset.skillLevel = member.skill_level || '3';
+                option.dataset.skillLevel = member.skill_level || '6';
                 select.appendChild(option);
             });
         })
@@ -207,7 +212,7 @@ function fillMemberInfo() {
         // Fill in the form fields with the selected member's info
         document.getElementById('name').value = selectedOption.dataset.name || '';
         document.getElementById('age').value = selectedOption.dataset.age || '';
-        document.getElementById('skill_level').value = selectedOption.dataset.skillLevel || '3';
+        document.getElementById('skill_level').value = selectedOption.dataset.skillLevel || '6';
     }
 }
 </script>
