@@ -1296,14 +1296,18 @@ def program_chart():
     scorer = PhilmontScorer(crew_id)
     program_scores = scorer.get_program_scores(method)
 
+    # Apply program factor to match itinerary calculations
+    program_factor = scorer.get_score_factor("programFactor")
+
     # Get program names and create chart data
     programs = conn.execute("SELECT id, name FROM programs ORDER BY name").fetchall()
 
     chart_data = []
     for program in programs:
-        score = program_scores.get(program["id"], 0)
+        raw_score = program_scores.get(program["id"], 0)
+        factored_score = raw_score * program_factor
         chart_data.append(
-            {"id": program["id"], "name": program["name"], "score": score}
+            {"id": program["id"], "name": program["name"], "score": factored_score}
         )
 
     # Sort by score (descending)
