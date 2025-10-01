@@ -77,6 +77,33 @@
             </div>
         </div>
 
+        <!-- Trek Type Selection -->
+        <div class="col-md-4 mb-4">
+            <div class="card">
+                <div class="card-header">
+                    <i class="fas fa-calendar-alt"></i> Trek Type
+                </div>
+                <div class="card-body">
+                    <div class="form-group">
+                        <label for="trek_type" class="form-label">
+                            <strong>Select Trek Duration:</strong>
+                        </label>
+                        <select class="form-select" id="trek_type" name="trek_type" onchange="handleTrekTypeChange()">
+                            <option value="12-day" {% if not preferences or not preferences.trek_type or preferences.trek_type == '12-day' %}selected{% endif %}>
+                                12-Day Treks (Traditional)
+                            </option>
+                            <option value="9-day" {% if preferences and preferences.trek_type == '9-day' %}selected{% endif %}>
+                                9-Day Treks (Shorter Duration)
+                            </option>
+                        </select>
+                        <div class="form-text">
+                            <small>Choose between traditional 12-day treks or shorter 9-day treks. This will affect which itineraries are shown in your results.</small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
         <!-- Regional Preferences -->
         <div class="col-md-4 mb-4">
             <div class="card">
@@ -601,6 +628,31 @@
             document.body.appendChild(form);
             form.submit();
         }
+    }
+
+    // Handle trek type change
+    function handleTrekTypeChange() {
+        const trekType = document.getElementById('trek_type').value;
+        
+        // Show a brief notification about the change
+        const notification = document.createElement('div');
+        notification.className = 'alert alert-info alert-dismissible fade show position-fixed';
+        notification.style.cssText = 'top: 20px; right: 20px; z-index: 1050; max-width: 400px;';
+        notification.innerHTML = `
+            <i class="fas fa-info-circle"></i> 
+            Trek type changed to <strong>${trekType}</strong>. 
+            Save your preferences to apply this change.
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        `;
+        
+        document.body.appendChild(notification);
+        
+        // Auto-dismiss after 5 seconds
+        setTimeout(() => {
+            if (notification.parentNode) {
+                notification.parentNode.removeChild(notification);
+            }
+        }, 5000);
     }
 </script>
 {% endblock %}

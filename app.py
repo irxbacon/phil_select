@@ -221,9 +221,20 @@ def get_existing_scores(crew_id=1):
 # ===================================
 
 
+def get_crew_trek_type(crew_id):
+    """Get the trek type preference for a crew"""
+    conn = get_db_connection()
+    prefs = conn.execute(
+        "SELECT trek_type FROM crew_preferences WHERE crew_id = ?", (crew_id,)
+    ).fetchone()
+    conn.close()
+    return prefs["trek_type"] if prefs and prefs["trek_type"] else "12-day"
+
+
 class PhilmontScorer:
-    def __init__(self, crew_id):
+    def __init__(self, crew_id, trek_type="12-day"):
         self.crew_id = crew_id
+        self.trek_type = trek_type
         self._scoring_factors = None
 
     def get_score_factor(self, factor_code):
@@ -400,10 +411,15 @@ class PhilmontScorer:
 
         conn = get_db_connection()
 
-        # Get all itineraries
-        itineraries = conn.execute(
-            "SELECT * FROM itineraries ORDER BY itinerary_code"
-        ).fetchall()
+        # Get all itineraries based on trek type
+        if self.trek_type == "9-day":
+            itineraries = conn.execute(
+                "SELECT * FROM itineraries_9day ORDER BY itinerary_code"
+            ).fetchall()
+        else:
+            itineraries = conn.execute(
+                "SELECT * FROM itineraries ORDER BY itinerary_code"
+            ).fetchall()
 
         results = []
 
@@ -452,15 +468,25 @@ class PhilmontScorer:
 
     def _calculate_program_score(self, itinerary_id, program_scores, conn):
         """Calculate program score for an itinerary"""
-        # Get programs available for this itinerary
-        available_programs = conn.execute(
-            """
-            SELECT ip.program_id 
-            FROM itinerary_programs ip 
-            WHERE ip.itinerary_id = ? AND ip.is_available = 1
-        """,
-            (itinerary_id,),
-        ).fetchall()
+        # Get programs available for this itinerary based on trek type
+        if self.trek_type == "9-day":
+            available_programs = conn.execute(
+                """
+                SELECT ip.program_id 
+                FROM itinerary_programs_9day ip 
+                WHERE ip.itinerary_id = ? AND ip.is_available = 1
+            """,
+                (itinerary_id,),
+            ).fetchall()
+        else:
+            available_programs = conn.execute(
+                """
+                SELECT ip.program_id 
+                FROM itinerary_programs ip 
+                WHERE ip.itinerary_id = ? AND ip.is_available = 1
+            """,
+                (itinerary_id,),
+            ).fetchall()
 
         # Sum scores for available programs
         total_score = 0
@@ -740,7 +766,8 @@ def recalculate_crew_scores(crew_id):
 
     try:
         # Calculate aggregate scores for each program using different methods
-        scorer = PhilmontScorer(crew_id)
+        trek_type = get_crew_trek_type(crew_id)
+        scorer = PhilmontScorer(crew_id, trek_type)
 
         methods = ["Total", "Average", "Median"]
 
@@ -1043,6 +1070,7 @@ def save_preferences():
                 layovers_required = ?,
                 prefer_frequent_resupply = ?,
                 prefer_self_sufficient = ?,
+                trek_type = ?,
                 updated_at = CURRENT_TIMESTAMP
             WHERE crew_id = ?
         """,
@@ -1075,6 +1103,7 @@ def save_preferences():
                 "layovers_required" in request.form,
                 "prefer_frequent_resupply" in request.form,
                 "prefer_self_sufficient" in request.form,
+                request.form.get("trek_type", "12-day"),
                 crew_id,
             ),
         )
@@ -1086,8 +1115,8 @@ def save_preferences():
             (crew_id, area_important, area_rank_south, area_rank_central, area_rank_north, area_rank_valle_vidal,
              max_altitude_important, total_elevation_gain_important, altitude_change_important, daily_altitude_change_threshold, difficulty_challenging, difficulty_rugged, 
              difficulty_strenuous, difficulty_super_strenuous, climb_baldy, climb_phillips, climb_tooth, 
-             climb_inspiration_point, climb_trail_peak, hike_in_preference, hike_out_preference, programs_important, adult_program_weight_enabled, adult_program_weight_percent, max_dry_camps, showers_required, layovers_required, prefer_frequent_resupply, prefer_self_sufficient)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+             climb_inspiration_point, climb_trail_peak, hike_in_preference, hike_out_preference, programs_important, adult_program_weight_enabled, adult_program_weight_percent, max_dry_camps, showers_required, layovers_required, prefer_frequent_resupply, prefer_self_sufficient, trek_type)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         """,
             (
                 crew_id,
@@ -1119,6 +1148,7 @@ def save_preferences():
                 "layovers_required" in request.form,
                 "prefer_frequent_resupply" in request.form,
                 "prefer_self_sufficient" in request.form,
+                request.form.get("trek_type", "12-day"),
             ),
         )
 
@@ -1251,7 +1281,8 @@ def results():
         flash("No crews found. Please create a crew first.", "error")
         return redirect(url_for("admin"))
 
-    scorer = PhilmontScorer(crew_id)
+    trek_type = get_crew_trek_type(crew_id)
+    scorer = PhilmontScorer(crew_id, trek_type)
     results = scorer.calculate_itinerary_scores(method)
 
     return render_template(
@@ -1293,7 +1324,8 @@ def program_chart():
         crews = conn.execute("SELECT * FROM crews WHERE id = ?", (crew_id,)).fetchall()
 
     # Get program scores
-    scorer = PhilmontScorer(crew_id)
+    trek_type = get_crew_trek_type(crew_id)
+    scorer = PhilmontScorer(crew_id, trek_type)
     program_scores = scorer.get_program_scores(method)
 
     # Apply program factor to match itinerary calculations
@@ -1331,7 +1363,8 @@ def api_calculate():
     crew_id = request.args.get("crew_id", 1, type=int)
     method = request.args.get("method", "Total")
 
-    scorer = PhilmontScorer(crew_id)
+    trek_type = get_crew_trek_type(crew_id)
+    scorer = PhilmontScorer(crew_id, trek_type)
     results = scorer.calculate_itinerary_scores(method)
 
     # Convert to JSON-friendly format
@@ -1387,9 +1420,16 @@ def itinerary_detail(code):
     """Detailed view of a specific itinerary"""
     conn = get_db_connection()
 
-    itinerary = conn.execute(
-        "SELECT * FROM itineraries WHERE itinerary_code = ?", (code,)
-    ).fetchone()
+    # Determine which table to query based on itinerary code
+    if code.startswith("9-"):
+        itinerary = conn.execute(
+            "SELECT * FROM itineraries_9day WHERE itinerary_code = ?", (code,)
+        ).fetchone()
+    else:
+        itinerary = conn.execute(
+            "SELECT * FROM itineraries WHERE itinerary_code = ?", (code,)
+        ).fetchone()
+
     if not itinerary:
         flash(f"Itinerary {code} not found", "error")
         return redirect(url_for("results"))
