@@ -247,9 +247,9 @@ class PhilmontScorer:
         conn.close()
 
         if skill_data and skill_data["avg_skill"]:
-            # Round to nearest integer skill level (1-5)
-            return max(1, min(5, round(skill_data["avg_skill"])))
-        return 3  # Default to skill level 3 if no data
+            # Round to nearest integer skill level (1-10)
+            return max(1, min(10, round(skill_data["avg_skill"])))
+        return 5  # Default to skill level 5 if no data (middle of 1-10 range)
 
     def set_itinerary_difficulty_factor(
         self, itinerary_difficulty, crew_skill_level=None
@@ -303,6 +303,11 @@ class PhilmontScorer:
             3: {"C": 4000, "R": 3167, "S": 2333, "SS": 1500},
             4: {"C": 3500, "R": 3000, "S": 2500, "SS": 2000},
             5: {"C": 3000, "R": 2833, "S": 2667, "SS": 2500},
+            6: {"C": 2500, "R": 2667, "S": 2833, "SS": 3000},
+            7: {"C": 2000, "R": 2500, "S": 3000, "SS": 3500},
+            8: {"C": 1500, "R": 2333, "S": 3167, "SS": 4000},
+            9: {"C": 1000, "R": 2167, "S": 3333, "SS": 4500},
+            10: {"C": 500, "R": 2000, "S": 3500, "SS": 5000},
         }
 
     def get_program_scores(self, method="Total"):
@@ -506,11 +511,14 @@ class PhilmontScorer:
             "covers_valle_vidal": crew_prefs.get("area_rank_valle_vidal", 0),
         }
 
+        # Define rank-based scoring table
+        rank_scores = {1: 1000, 2: 600, 3: 200, 4: 150}
+
         score = 0
         for area_field, rank in area_scores.items():
             if itinerary[area_field] and rank:
-                # Higher rank (1-4) gives more points
-                score += (5 - rank) * 25
+                # Use rank-based scoring table
+                score += rank_scores.get(rank, 0)
 
         return score
 
@@ -518,11 +526,90 @@ class PhilmontScorer:
         """Calculate altitude-based score"""
         score = 0
 
+        # Highest Camp Elevation Scoring - using altitude preference chart
         max_altitude = itinerary["max_altitude"] or 0
-        if crew_prefs.get("max_altitude_important", False):
-            threshold = crew_prefs.get("max_altitude_threshold", 10000)
-            if max_altitude <= threshold:
-                score += 50
+        if crew_prefs.get("max_altitude_important", False) and max_altitude > 0:
+            # Altitude scoring chart
+            altitude_scores = {
+                8999: 20,  # below 9,000
+                9000: 30,
+                9100: 40,
+                9200: 50,
+                9800: 60,
+                10000: 70,
+                10500: 80,
+                10600: 90,
+                10800: 100,
+                11000: 110,
+                11800: 120,
+                12441: 130,
+            }
+
+            # Find the appropriate score based on max altitude
+            altitude_score = 20  # Default to lowest score
+            for threshold, points in sorted(altitude_scores.items(), reverse=True):
+                if max_altitude >= threshold:
+                    altitude_score = points
+                    break
+
+            score += altitude_score
+
+        # Overall Elevation Change Scoring - using elevation gain preference chart
+        total_gain = (
+            itinerary["total_elevation_gain"]
+            if itinerary["total_elevation_gain"]
+            else 0
+        )
+        if crew_prefs.get("total_elevation_gain_important", False) and total_gain > 0:
+            # Elevation gain scoring chart
+            elevation_gain_scores = {
+                1499: 40,  # below 1,500
+                1500: 50,
+                2000: 60,
+                2500: 70,
+                3000: 80,
+                3500: 90,
+                4000: 100,
+                4500: 90,
+                5000: 80,
+                5500: 70,
+                6000: 60,
+                6500: 50,
+            }
+
+            # Find the appropriate score based on total elevation gain
+            gain_score = 40  # Default to lowest score
+            for threshold, points in sorted(
+                elevation_gain_scores.items(), reverse=True
+            ):
+                if total_gain >= threshold:
+                    gain_score = points
+                    break
+
+            score += gain_score
+
+        # Average Daily Change Scoring - using daily elevation change chart
+        if crew_prefs.get("altitude_change_important", False):
+            daily_change = (
+                itinerary["avg_daily_elevation_change"]
+                if itinerary["avg_daily_elevation_change"]
+                else 0
+            )
+
+            if daily_change > 0:
+                # Daily elevation change scoring chart
+                daily_change_scores = {300: 100, 600: 300, 900: 200, 1200: 100}
+
+                # Find the appropriate score based on daily elevation change
+                daily_score = 100  # Default to lowest score
+                for threshold, points in sorted(
+                    daily_change_scores.items(), reverse=True
+                ):
+                    if daily_change >= threshold:
+                        daily_score = points
+                        break
+
+                score += daily_score
 
         return score
 
@@ -934,7 +1021,9 @@ def save_preferences():
                 area_rank_north = ?,
                 area_rank_valle_vidal = ?,
                 max_altitude_important = ?,
-                max_altitude_threshold = ?,
+                total_elevation_gain_important = ?,
+                altitude_change_important = ?,
+                daily_altitude_change_threshold = ?,
                 difficulty_challenging = ?,
                 difficulty_rugged = ?,
                 difficulty_strenuous = ?,
@@ -964,7 +1053,9 @@ def save_preferences():
                 safe_int(request.form.get("area_rank_north")),
                 safe_int(request.form.get("area_rank_valle_vidal")),
                 "max_altitude_important" in request.form,
-                safe_int(request.form.get("max_altitude_threshold")),
+                "total_elevation_gain_important" in request.form,
+                "altitude_change_important" in request.form,
+                safe_int(request.form.get("daily_altitude_change_threshold")),
                 "difficulty_challenging" in request.form,
                 "difficulty_rugged" in request.form,
                 "difficulty_strenuous" in request.form,
@@ -993,10 +1084,10 @@ def save_preferences():
             """
             INSERT INTO crew_preferences 
             (crew_id, area_important, area_rank_south, area_rank_central, area_rank_north, area_rank_valle_vidal,
-             max_altitude_important, max_altitude_threshold, difficulty_challenging, difficulty_rugged, 
+             max_altitude_important, total_elevation_gain_important, altitude_change_important, daily_altitude_change_threshold, difficulty_challenging, difficulty_rugged, 
              difficulty_strenuous, difficulty_super_strenuous, climb_baldy, climb_phillips, climb_tooth, 
              climb_inspiration_point, climb_trail_peak, hike_in_preference, hike_out_preference, programs_important, adult_program_weight_enabled, adult_program_weight_percent, max_dry_camps, showers_required, layovers_required, prefer_frequent_resupply, prefer_self_sufficient)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         """,
             (
                 crew_id,
@@ -1006,7 +1097,9 @@ def save_preferences():
                 safe_int(request.form.get("area_rank_north")),
                 safe_int(request.form.get("area_rank_valle_vidal")),
                 "max_altitude_important" in request.form,
-                safe_int(request.form.get("max_altitude_threshold")),
+                "total_elevation_gain_important" in request.form,
+                "altitude_change_important" in request.form,
+                safe_int(request.form.get("daily_altitude_change_threshold")),
                 "difficulty_challenging" in request.form,
                 "difficulty_rugged" in request.form,
                 "difficulty_strenuous" in request.form,
@@ -1203,14 +1296,18 @@ def program_chart():
     scorer = PhilmontScorer(crew_id)
     program_scores = scorer.get_program_scores(method)
 
+    # Apply program factor to match itinerary calculations
+    program_factor = scorer.get_score_factor("programFactor")
+
     # Get program names and create chart data
     programs = conn.execute("SELECT id, name FROM programs ORDER BY name").fetchall()
 
     chart_data = []
     for program in programs:
-        score = program_scores.get(program["id"], 0)
+        raw_score = program_scores.get(program["id"], 0)
+        factored_score = raw_score * program_factor
         chart_data.append(
-            {"id": program["id"], "name": program["name"], "score": score}
+            {"id": program["id"], "name": program["name"], "score": factored_score}
         )
 
     # Sort by score (descending)

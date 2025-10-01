@@ -204,16 +204,32 @@
                         <input class="form-check-input" type="checkbox" id="max_altitude_important" name="max_altitude_important"
                                {% if preferences and preferences.max_altitude_important %}checked{% endif %}>
                         <label class="form-check-label" for="max_altitude_important">
-                            <strong>Maximum altitude is important</strong>
+                            <strong>Highest camp elevation</strong>
                         </label>
+                        <div class="form-text">
+                            <small>Score based on maximum camp elevation (20-130 points based on altitude).</small>
+                        </div>
                     </div>
                     
-                    <div id="altitude_settings" {% if not preferences or not preferences.max_altitude_important %}style="display:none;"{% endif %}>
-                        <div class="mb-3">
-                            <label for="max_altitude_threshold" class="form-label">Maximum altitude threshold (feet):</label>
-                            <input type="number" class="form-control" id="max_altitude_threshold" name="max_altitude_threshold" 
-                                   value="{{ preferences.max_altitude_threshold if preferences else '' }}" 
-                                   placeholder="e.g., 10000">
+                    <div class="form-check mb-3">
+                        <input class="form-check-input" type="checkbox" id="total_elevation_gain_important" name="total_elevation_gain_important"
+                               {% if preferences and preferences.total_elevation_gain_important %}checked{% endif %}>
+                        <label class="form-check-label" for="total_elevation_gain_important">
+                            <strong>Overall elevation change</strong>
+                        </label>
+                        <div class="form-text">
+                            <small>Score based on total elevation gain throughout trek (40-100 points based on gain).</small>
+                        </div>
+                    </div>
+                    
+                    <div class="form-check mb-3">
+                        <input class="form-check-input" type="checkbox" id="altitude_change_important" name="altitude_change_important"
+                               {% if preferences and preferences.altitude_change_important %}checked{% endif %}>
+                        <label class="form-check-label" for="altitude_change_important">
+                            <strong>Average daily change</strong>
+                        </label>
+                        <div class="form-text">
+                            <small>Score based on average daily elevation change (100-300 points based on daily change).</small>
                         </div>
                     </div>
                 </div>
@@ -523,12 +539,6 @@
     document.getElementById('area_important').addEventListener('change', function() {
         const rankings = document.getElementById('area_rankings');
         rankings.style.display = this.checked ? 'block' : 'none';
-    });
-
-    // Show/hide altitude settings based on importance checkbox
-    document.getElementById('max_altitude_important').addEventListener('change', function() {
-        const settings = document.getElementById('altitude_settings');
-        settings.style.display = this.checked ? 'block' : 'none';
     });
 
     // Show/hide adult program weight settings based on checkbox
