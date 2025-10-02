@@ -664,12 +664,27 @@
         const notification = document.createElement('div');
         notification.className = 'alert alert-info alert-dismissible fade show position-fixed';
         notification.style.cssText = 'top: 20px; right: 20px; z-index: 1050; max-width: 400px;';
-        notification.innerHTML = `
-            <i class="fas fa-info-circle"></i> 
-            Trek type changed to <strong>${trekType}</strong>. 
-            Save your preferences to apply this change.
-            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-        `;
+        
+        // Build notification content safely
+        const icon = document.createElement('i');
+        icon.className = 'fas fa-info-circle';
+        notification.appendChild(icon);
+        
+        const text1 = document.createTextNode(' Trek type changed to ');
+        notification.appendChild(text1);
+        
+        const strong = document.createElement('strong');
+        strong.textContent = trekType;
+        notification.appendChild(strong);
+        
+        const text2 = document.createTextNode('. Save your preferences to apply this change.');
+        notification.appendChild(text2);
+        
+        const btnClose = document.createElement('button');
+        btnClose.type = 'button';
+        btnClose.className = 'btn-close';
+        btnClose.setAttribute('data-bs-dismiss', 'alert');
+        notification.appendChild(btnClose);
         
         document.body.appendChild(notification);
         
