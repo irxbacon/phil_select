@@ -695,14 +695,44 @@ class PhilmontScorer:
         # Use dry_camps field from itineraries table
         dry_camp_count = itinerary["dry_camps"] or 0
         max_dry_camps = crew_prefs.get("max_dry_camps")
-
+        dry_camp_scores = {0: 300, 1: 250, 2: 225, 3: 200, 4: 150, 5: 100, 6: 50, 7: 20}
         if max_dry_camps is not None:
             if dry_camp_count <= max_dry_camps:
                 # Award points for staying within limit, more points for fewer dry camps
-                score += (max_dry_camps - dry_camp_count + 1) * 200
+                score += dry_camp_scores.get(
+                    min(dry_camp_count, 7), 20
+                )  # Use 20 for 7+ camps
             else:
                 # Penalize for exceeding limit
                 score -= (dry_camp_count - max_dry_camps) * 500
+        else:
+            # Use dry camp scoring table when no maximum is set
+            score += dry_camp_scores.get(
+                min(dry_camp_count, 7), 20
+            )  # Use 20 for 7+ camps
+
+        # Use trail_camps field from itineraries table for trail camp scoring
+        trail_camp_count = itinerary["trail_camps"] or 0
+        trail_camp_scores = {
+            0: 250,
+            1: 200,
+            2: 175,
+            3: 150,
+            4: 125,
+            5: 100,
+            6: 75,
+            7: 50,
+            8: 25,
+        }
+        score += trail_camp_scores.get(
+            min(trail_camp_count, 8), 25
+        )  # Use 25 for 8+ camps
+
+        # Total camps scoring (based on total number of camps in itinerary)
+        total_camps = dry_camp_count + trail_camp_count
+        total_camp_scores = {3: 60, 4: 70, 5: 80, 6: 90, 7: 100, 8: 75, 9: 60, 10: 50}
+        if total_camps in total_camp_scores:
+            score += total_camp_scores[total_camps]
 
         # Check for showers if required
         if crew_prefs.get("showers_required", False):
