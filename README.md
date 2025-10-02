@@ -14,10 +14,10 @@ A Python web application that replicates the functionality of the original Excel
 
 ## Database Contents
 
-- **25 Trek Itineraries** (12-day treks)
+- **36 Trek Itineraries** (24 twelve-day treks + 12 nine-day treks)
 - **56 Activity Programs** (climbing, historical, range sports, STEM, etc.)
 - **169 Backcountry Camps** with elevation and facility data
-- **192 Daily Camp Assignments** across all itineraries
+- **701 Program Assignments** across all itineraries
 
 ## Installation
 

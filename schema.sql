@@ -39,10 +39,11 @@ CREATE TABLE camps (
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
--- Trek itineraries
+-- Trek itineraries (unified table for both 12-day and 9-day treks)
 CREATE TABLE itineraries (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
-    itinerary_code VARCHAR(10) UNIQUE NOT NULL, -- e.g., "12-1", "12-2"
+    itinerary_code VARCHAR(10) UNIQUE NOT NULL, -- e.g., "12-1", "12-2", "9-1", "9-2"
+    trek_type TEXT DEFAULT '12-day', -- '12-day' or '9-day'
     expedition_number VARCHAR(20),
     difficulty VARCHAR(20), -- C, R, S, SS (Challenging, Rugged, Strenuous, Super Strenuous)
     distance INTEGER, -- approximate miles
@@ -100,11 +101,12 @@ CREATE TABLE itinerary_camps (
     UNIQUE(itinerary_id, day_number)
 );
 
--- Programs available on each itinerary
+-- Programs available on each itinerary (unified table for both 12-day and 9-day treks)
 CREATE TABLE itinerary_programs (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     itinerary_id INTEGER NOT NULL,
     program_id INTEGER NOT NULL,
+    trek_type TEXT DEFAULT '12-day', -- '12-day' or '9-day'
     is_available BOOLEAN DEFAULT TRUE,
     year INTEGER DEFAULT 2025,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -395,6 +397,8 @@ ORDER BY c.crew_name, cr.year DESC;
 CREATE INDEX idx_itineraries_difficulty ON itineraries(difficulty);
 CREATE INDEX idx_itineraries_distance ON itineraries(distance);
 CREATE INDEX idx_itineraries_region ON itineraries(covers_south, covers_central, covers_north, covers_valle_vidal);
+CREATE INDEX idx_itineraries_trek_type ON itineraries(trek_type);
+CREATE INDEX idx_itinerary_programs_trek_type ON itinerary_programs(trek_type);
 CREATE INDEX idx_camps_country ON camps(country);
 CREATE INDEX idx_camps_type ON camps(is_staffed, is_trail_camp, is_dry_camp);
 CREATE INDEX idx_program_scores_crew ON program_scores(crew_id, program_id);

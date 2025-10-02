@@ -77,6 +77,51 @@
             </div>
         </div>
 
+        <!-- Trek Type Selection -->
+        <div class="col-md-4 mb-4">
+            <div class="card">
+                <div class="card-header">
+                    <i class="fas fa-calendar-alt"></i> Trek Type
+                </div>
+                <div class="card-body">
+                    <div class="form-group">
+                        <label for="trek_type" class="form-label">
+                            <strong>Select Trek Duration:</strong>
+                        </label>
+                        <select class="form-select" id="trek_type" name="trek_type" onchange="handleTrekTypeChange()">
+                            {% for trek_type in available_trek_types %}
+                                <option value="{{ trek_type }}" {% if (preferences and preferences.trek_type == trek_type) or (not preferences and trek_type == '12-day') %}selected{% endif %}>
+                                    {% if trek_type == '12-day' %}
+                                        12-Day Treks (Traditional)
+                                    {% elif trek_type == '9-day' %}
+                                        9-Day Treks (Shorter Duration)
+                                    {% elif trek_type == '7-day' %}
+                                        7-Day Treks (Weekend Adventure)
+                                    {% elif trek_type == 'Cavalcade' %}
+                                        Cavalcade (Horseback Adventure)
+                                    {% else %}
+                                        {{ trek_type }}
+                                    {% endif %}
+                                </option>
+                            {% endfor %}
+                        </select>
+                        <div class="form-text">
+                            <small>Only trek types with available itinerary data are shown. Currently available: 
+                            {% for trek_type in available_trek_types %}{{ trek_type }}{% if not loop.last %}, {% endif %}{% endfor %}.
+                            </small>
+                        </div>
+                        {% if preferences and preferences.trek_type not in available_trek_types %}
+                        <div class="alert alert-info mt-2">
+                            <i class="fas fa-info-circle"></i> 
+                            Your previously selected trek type "{{ preferences.trek_type }}" is not currently available. 
+                            Please select from the available options above.
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+
         <!-- Regional Preferences -->
         <div class="col-md-4 mb-4">
             <div class="card">
@@ -609,6 +654,46 @@
             document.body.appendChild(form);
             form.submit();
         }
+    }
+
+    // Handle trek type change
+    function handleTrekTypeChange() {
+        const trekType = document.getElementById('trek_type').value;
+        
+        // Show a brief notification about the change
+        const notification = document.createElement('div');
+        notification.className = 'alert alert-info alert-dismissible fade show position-fixed';
+        notification.style.cssText = 'top: 20px; right: 20px; z-index: 1050; max-width: 400px;';
+        
+        // Build notification content safely
+        const icon = document.createElement('i');
+        icon.className = 'fas fa-info-circle';
+        notification.appendChild(icon);
+        
+        const text1 = document.createTextNode(' Trek type changed to ');
+        notification.appendChild(text1);
+        
+        const strong = document.createElement('strong');
+        strong.textContent = trekType;
+        notification.appendChild(strong);
+        
+        const text2 = document.createTextNode('. Save your preferences to apply this change.');
+        notification.appendChild(text2);
+        
+        const btnClose = document.createElement('button');
+        btnClose.type = 'button';
+        btnClose.className = 'btn-close';
+        btnClose.setAttribute('data-bs-dismiss', 'alert');
+        notification.appendChild(btnClose);
+        
+        document.body.appendChild(notification);
+        
+        // Auto-dismiss after 5 seconds
+        setTimeout(() => {
+            if (notification.parentNode) {
+                notification.parentNode.removeChild(notification);
+            }
+        }, 5000);
     }
 </script>
 {% endblock %}

@@ -65,6 +65,10 @@
                         </div>
                     </div>
                     {% endfor %}
+                {% else %}
+                    <div class="alert alert-info">
+                        <i class="fas fa-info-circle"></i> No itineraries available for the selected trek type yet. Coming soon!
+                    </div>
                 {% endif %}
             </div>
         </div>
@@ -81,6 +85,7 @@
                 </button>
             </div>
             <div class="card-body p-0">
+                {% if results %}
                 <div class="table-responsive">
                     <table class="table table-striped table-hover mb-0">
                         <thead class="table-dark">
@@ -139,6 +144,13 @@
                         </tbody>
                     </table>
                 </div>
+                {% else %}
+                <div class="alert alert-info m-3">
+                    <h5><i class="fas fa-info-circle"></i> No Itineraries Available</h5>
+                    <p>There are currently no itineraries available for the selected trek type. Data for 7-Day and Cavalcade treks is coming soon!</p>
+                    <p>Try selecting a different trek type in your <a href="{{ url_for('preferences') }}" class="alert-link">preferences</a>.</p>
+                </div>
+                {% endif %}
             </div>
         </div>
     </div>
