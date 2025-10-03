@@ -148,6 +148,22 @@ This application was created to replace the Excel-based system while maintaining
 - VBA macro logic recreated in Flask routes
 - User interface adapted for web with improved usability
 
+## Automated Builds
+
+This repository uses GitHub Actions to automatically build executables when releases are created:
+
+### � Release Builds
+- **Trigger**: Creating a GitHub release automatically builds executables
+- **Cross-Platform**: Native executables for Linux, Windows, and macOS
+- **Auto-Attachment**: Executables are automatically attached to the release
+- **Easy Distribution**: Direct download links for end users
+
+### 💾 Download Options
+1. **Stable Release**: Releases page → Latest release → Assets
+2. **Build Yourself**: Follow installation instructions above
+
+The automated builds ensure users can run the application without installing Python or dependencies.
+
 ## Support
 
 For questions about the original Excel spreadsheet functionality, contact the original author. For issues with this web application, check the console output for error details.

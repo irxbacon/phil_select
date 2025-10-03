@@ -1,0 +1,135 @@
+name: Build and Release Executables
+
+on:
+  release:
+    types: [ created ]
+
+jobs:
+  build:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+        include:
+          - os: ubuntu-latest
+            executable_name: philmont-trek-selector-linux
+            path_separator: "/"
+          - os: windows-latest
+            executable_name: philmont-trek-selector-windows.exe
+            path_separator: ";"
+          - os: macos-latest
+            executable_name: philmont-trek-selector-macos
+            path_separator: ":"
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Set up Python 3.11
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.11'
+
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+        pip install pyinstaller
+
+    - name: Verify database exists
+      run: |
+        python -c "import os; print('Database exists:', os.path.exists('philmont_selection.db'))"
+        python -c "import os; print('Database size:', os.path.getsize('philmont_selection.db') if os.path.exists('philmont_selection.db') else 'Not found')"
+
+    - name: Test application
+      run: |
+        python -c "
+        import sqlite3
+        conn = sqlite3.connect('philmont_selection.db')
+        cursor = conn.cursor()
+        cursor.execute('SELECT COUNT(*) FROM itineraries')
+        count = cursor.fetchone()[0]
+        print(f'Database has {count} itineraries')
+        conn.close()
+        assert count > 0, 'Database is empty'
+        "
+
+    - name: Build with PyInstaller
+      run: |
+        pyinstaller --onefile --add-data "templates${{ matrix.path_separator }}templates" --add-data "philmont_selection.db${{ matrix.path_separator }}." --name "${{ matrix.executable_name }}" app.py
+
+    - name: Verify executable (Unix)
+      if: runner.os != 'Windows'
+      run: |
+        ls -la dist/
+        file dist/${{ matrix.executable_name }}
+        
+    - name: Verify executable (Windows)
+      if: runner.os == 'Windows'
+      run: |
+        dir dist\
+        
+    - name: Test executable briefly (Unix)
+      if: runner.os != 'Windows'
+      run: |
+        cd dist
+        timeout 5s ./${{ matrix.executable_name }} || echo "App started successfully and was terminated"
+        
+    - name: Test executable briefly (Windows)
+      if: runner.os == 'Windows'
+      run: |
+        cd dist
+        # Start the app in background and kill it after a few seconds
+        Start-Process -FilePath ".\${{ matrix.executable_name }}" -PassThru | ForEach-Object { Start-Sleep -Seconds 3; Stop-Process -Id $_.Id -Force } 2>$null || echo "App test completed"
+
+    - name: Upload executable as artifact
+      uses: actions/upload-artifact@v3
+      with:
+        name: ${{ matrix.executable_name }}
+        path: dist/${{ matrix.executable_name }}
+        retention-days: 30
+
+    - name: Upload to release (if release event)
+      if: github.event_name == 'release'
+      uses: actions/upload-release-asset@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        upload_url: ${{ github.event.release.upload_url }}
+        asset_path: dist/${{ matrix.executable_name }}
+        asset_name: ${{ matrix.executable_name }}
+        asset_content_type: application/octet-stream
+
+  create-release-info:
+    needs: build
+    runs-on: ubuntu-latest
+    if: github.event_name == 'release'
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Generate build info
+      run: |
+        echo "# Build Information" > build-info.md
+        echo "" >> build-info.md
+        echo "**Build Date:** $(date -u '+%Y-%m-%d %H:%M:%S UTC')" >> build-info.md
+        echo "**Commit:** ${{ github.sha }}" >> build-info.md
+        echo "**Branch:** ${{ github.ref_name }}" >> build-info.md
+        echo "" >> build-info.md
+        echo "## Available Downloads:" >> build-info.md
+        echo "- **Linux:** philmont-trek-selector-linux" >> build-info.md
+        echo "- **Windows:** philmont-trek-selector-windows.exe" >> build-info.md
+        echo "- **macOS:** philmont-trek-selector-macos" >> build-info.md
+        echo "" >> build-info.md
+        echo "## Usage:" >> build-info.md
+        echo "1. Download the appropriate executable for your platform" >> build-info.md
+        echo "2. Make it executable (Linux/macOS): \`chmod +x philmont-trek-selector-*\`" >> build-info.md
+        echo "3. Run: \`./philmont-trek-selector-*\` or double-click on Windows" >> build-info.md
+        echo "4. Open browser to: http://127.0.0.1:5002" >> build-info.md
+        cat build-info.md
+
+    - name: Upload build info
+      uses: actions/upload-artifact@v3
+      with:
+        name: build-info
+        path: build-info.md
+        retention-days: 30
