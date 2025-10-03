@@ -13,7 +13,7 @@ jobs:
         include:
           - os: ubuntu-latest
             executable_name: philmont-trek-selector-linux
-            path_separator: "/"
+            path_separator: ":"
           - os: windows-latest
             executable_name: philmont-trek-selector-windows.exe
             path_separator: ";"
