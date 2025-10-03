@@ -417,6 +417,927 @@ class PhilmontTrekImporter:
         # Return original name for database lookup
         return name
 
+    def extract_camp_data(self, pdf_path: str) -> Dict[str, List[str]]:
+        """
+        Extract camp data from "Itinerary Rendezvous Locations" pages.
+
+        Returns dict mapping itinerary codes to lists of camp names.
+        """
+        camp_data = {}
+
+        # Pages that contain "Itinerary Rendezvous Locations" sections
+        rendezvous_pages = {
+            24: "12-day",  # 12-day locations (first part)
+            25: "12-day",  # 12-day locations (second part)
+            97: "9-day",  # 9-day locations
+            134: "7-day",  # 7-day locations
+            171: "cavalcade",  # cavalcade locations
+        }
+
+        with pdfplumber.open(pdf_path) as pdf:
+            for page_num, trek_type in rendezvous_pages.items():
+                if page_num > len(pdf.pages):
+                    continue
+
+                print(f"Extracting camp data from page {page_num} ({trek_type})")
+                page = pdf.pages[page_num - 1]
+
+                text = page.extract_text() or ""
+                page_camps = self._process_rendezvous_locations(
+                    text, trek_type, page_num
+                )
+
+                if page_camps:
+                    # Merge camps from this page
+                    for itinerary_code, camps in page_camps.items():
+                        if itinerary_code not in camp_data:
+                            camp_data[itinerary_code] = []
+                        camp_data[itinerary_code].extend(camps)
+
+        return camp_data
+
+    def _process_camp_text(
+        self, text: str, trek_type: str, page_num: int
+    ) -> Optional[Dict[str, List[str]]]:
+        """
+        Process camp text from "Itineraries at a Glance" sections.
+
+        Format:
+        12-16 - 65 Mi. - R 12-17 - 65 Mi. - R 12-18 - 66 Mi. - S 12-19 - 66 Mi. - S 12-20 - 66 Mi. - S
+        House Canyon Magpie House Canyon Heck Meadow Herradura
+        Metcalf Station Urraca Chase Cow Cimarroncito Miners Park
+        Dan Beard Crater Lake Coyote Howl Cyphers Mine Clarks Fork
+        ...
+
+        Returns dict mapping itinerary codes to lists of camp names.
+        """
+        if not text:
+            return None
+
+        lines = text.split("\n")
+
+        # Find header lines with itinerary codes and subsequent camp data lines
+        header_lines = []
+        current_section = None
+        camp_data = {}
+
+        for line_idx, line in enumerate(lines):
+            line = line.strip()
+            if not line:
+                continue
+
+            # Check if line contains itinerary codes (header line)
+            if re.search(r"\d+-\d+\s*-\s*\d+\s*Mi\.\s*-\s*[CRSS]+", line) or re.search(
+                r"[1-9][A-Z]-[NS]\s*-\s*\d+\s*Mi\.\s*-\s*C", line
+            ):
+                # Extract itinerary codes from this header line
+                codes = self._extract_itinerary_codes_from_line(line)
+                if codes:
+                    current_section = {
+                        "codes": codes,
+                        "line_idx": line_idx,
+                        "header_line": line,
+                    }
+                    header_lines.append(current_section)
+                    print(f"    Found header with codes: {codes}")
+
+                    # Initialize camp data for these codes
+                    for code in codes:
+                        if code not in camp_data:
+                            camp_data[code] = []
+
+            # If we have a current section, check if this looks like a camp data line
+            elif current_section and self._looks_like_camp_data_line(line):
+                # Parse camps from this line for the current section
+                camps_in_line = self._parse_camp_line_by_position(
+                    line, current_section["codes"]
+                )
+
+                # Add camps to the appropriate itineraries
+                for i, code in enumerate(current_section["codes"]):
+                    if i < len(camps_in_line) and camps_in_line[i]:
+                        cleaned_camp = self._normalize_camp_name(camps_in_line[i])
+                        if cleaned_camp:
+                            camp_data[code].append(cleaned_camp)
+
+        if not camp_data:
+            print(f"    No camp data found on page {page_num}")
+            return None
+
+        # Apply limits but keep duplicates (they will be marked as layovers)
+        valid_camp_data = {}
+        for code, camps in camp_data.items():
+            if camps:
+                # Keep all camps including duplicates, but limit total count
+                max_camps = self._get_max_camps_for_itinerary(code)
+                if len(camps) > max_camps:
+                    camps = camps[:max_camps]
+
+                if camps:
+                    valid_camp_data[code] = camps
+                    print(f"    {code}: {camps}")
+
+        return valid_camp_data if valid_camp_data else None
+
+    def _process_rendezvous_locations(
+        self, text: str, trek_type: str, page_num: int
+    ) -> Optional[Dict[str, List[str]]]:
+        """
+        Process camp text from "Itinerary Rendezvous Locations" pages.
+
+        Format:
+        Itin Day 1 Day 2 Day 3 Day 4 Day 5 Day 6 Day 7 Day 8 Day 9 Day 10 Day 11 Day 12
+        12-1 Camping HQ Toothache Springs URRACA Stockade Ridge MINERS PARK BLACK BEAUBIEN Porcupine Divide CLEAR CREEK Tolby Headwaters Camping HQ
+
+        Returns dict mapping itinerary codes to lists of camp names.
+        """
+        if not text:
+            return None
+
+        lines = text.split("\n")
+        camp_data = {}
+
+        i = 0
+        while i < len(lines):
+            line = lines[i].strip()
+            if not line:
+                i += 1
+                continue
+
+            # Look for lines that start with itinerary codes
+            itinerary_match = None
+            if trek_type == "12-day":
+                itinerary_match = re.match(r"^(12-\d+)\s+(.*)", line)
+            elif trek_type == "9-day":
+                itinerary_match = re.match(r"^(9-\d+)\s+(.*)", line)
+            elif trek_type == "7-day":
+                itinerary_match = re.match(r"^(7-\d+)\s+(.*)", line)
+            elif trek_type == "cavalcade":
+                itinerary_match = re.match(r"^([1-9][A-Z]-[NS])\s+(.*)", line)
+
+            if itinerary_match:
+                itinerary_code = itinerary_match.group(1)
+                camps_text = itinerary_match.group(2)
+
+                # Check for specific known continuation patterns
+                if i + 1 < len(lines):
+                    next_line = lines[i + 1].strip()
+                    # Look for specific camp name continuations
+                    if next_line == "WRITINGS":
+                        # Replace "INDIAN" with "INDIAN WRITINGS" anywhere it appears
+                        camps_text = re.sub(
+                            r"INDIAN(?=\s)", "INDIAN WRITINGS", camps_text
+                        )
+                        i += 1
+                    elif next_line.startswith("WRITINGS"):
+                        # Handle "INDIAN" + "WRITINGS" = "Indian Writings"
+                        camps_text = re.sub(
+                            r"INDIAN(?=\s)", "INDIAN WRITINGS", camps_text
+                        )
+                        remaining = next_line[8:].strip()
+                        if remaining:
+                            camps_text += " " + remaining
+                        i += 1
+                    elif next_line == "STATION":
+                        # Handle "METCALF" + "STATION" = "Metcalf Station"
+                        camps_text = re.sub(
+                            r"METCALF(?=\s|$)", "METCALF STATION", camps_text
+                        )
+                        i += 1
+
+                # Parse the camps from this combined text
+                camps = self._parse_rendezvous_camps(camps_text)
+
+                if camps:
+                    # Apply limits
+                    max_camps = self._get_max_camps_for_itinerary(itinerary_code)
+                    if len(camps) > max_camps:
+                        camps = camps[:max_camps]
+
+                    camp_data[itinerary_code] = camps
+                    print(f"    {itinerary_code}: {camps}")
+
+            i += 1
+
+        return camp_data if camp_data else None
+
+    def _parse_rendezvous_camps(self, camps_text: str) -> List[str]:
+        """
+        Parse camp names from a rendezvous locations line.
+
+        Input: "Camping HQ Lovers Leap MINERS PARK Lower Bonito Lost Cabins CROOKED Wild Horse Mount Phillips CYPHERS MINE Hunting Lodge CLARKS FORK Camping HQ"
+        Output: ["Lovers Leap", "Miners Park", "Lower Bonito", "Lost Cabins", "Crooked", "Wild Horse", "Mount Phillips", "Cyphers Mine", "Hunting Lodge", "Clarks Fork"]
+        """
+        if not camps_text:
+            return []
+
+        # Split into potential camp segments
+        segments = camps_text.split()
+
+        camps = []
+        i = 0
+
+        while i < len(segments):
+            segment = segments[i]
+
+            # Skip "Camping HQ" at start and end
+            if (
+                segment == "Camping"
+                and i + 1 < len(segments)
+                and segments[i + 1] == "HQ"
+            ):
+                i += 2
+                continue
+            elif segment == "HQ" and i > 0 and segments[i - 1] == "Camping":
+                i += 1
+                continue
+
+            # Try to form camp names using known patterns
+            camp_name, words_consumed = self._extract_next_camp_name(segments, i)
+
+            if camp_name and words_consumed > 0:
+                # Normalize the camp name (but keep original casing patterns)
+                normalized = camp_name
+                # Handle all-caps camp names by converting to title case
+                if normalized.isupper() and len(normalized) > 3:
+                    normalized = normalized.title()
+                camps.append(normalized)
+                i += words_consumed
+            else:
+                # Single word camp - handle all-caps
+                camp = segment
+                if camp.isupper() and len(camp) > 3:
+                    camp = camp.title()
+                camps.append(camp)
+                i += 1
+
+        return camps
+
+    def _extract_itinerary_codes_from_line(self, line: str) -> List[str]:
+        """Extract itinerary codes from a header line."""
+        codes = []
+
+        # Pattern for regular itineraries: 12-1, 9-2, 7-3, etc.
+        regular_pattern = r"(\d+-\d+)\s*-\s*\d+\s*Mi\.\s*-\s*[CRSS]+"
+        matches = re.finditer(regular_pattern, line)
+        for match in matches:
+            codes.append(match.group(1))
+
+        # Pattern for cavalcade itineraries: 1A-N, 2B-S, etc.
+        cavalcade_pattern = r"([1-9][A-Z]-[NS])\s*-\s*\d+\s*Mi\.\s*-\s*C"
+        matches = re.finditer(cavalcade_pattern, line)
+        for match in matches:
+            codes.append(match.group(1))
+
+        return codes
+
+    def _looks_like_camp_data_line(self, line: str) -> bool:
+        """
+        Check if a line looks like it contains camp data.
+        """
+        if not line or len(line) < 10:
+            return False
+
+        # Skip lines that are clearly headers or other content
+        if re.search(r"\d+-\d+\s*-\s*\d+\s*Mi\.", line):
+            return False
+
+        # Skip lines that contain non-backcountry locations
+        if "camping hq" in line.lower():
+            return False
+
+        # Look for camp-like words
+        camp_indicators = [
+            "canyon",
+            "creek",
+            "mountain",
+            "lake",
+            "springs",
+            "park",
+            "ridge",
+            "mine",
+            "town",
+            "cabin",
+            "camp",
+            "beard",
+            "dean",
+            "ponil",
+            "abreu",
+            "miranda",
+            "baldy",
+            "beaubien",
+            "valley",
+            "meadow",
+            "peak",
+            "divide",
+            "pass",
+            "ranch",
+            "ruins",
+            "station",
+            "skyline",
+            "metcalf",
+            "ring",
+            "iris",
+            "upper",
+            "greenwood",
+            "herradura",
+            "miners",
+            "clarks",
+            "deer",
+            "cimarroncita",
+            "ringtail",
+            "placer",
+            "pueblano",
+        ]
+
+        line_lower = line.lower()
+        return any(indicator in line_lower for indicator in camp_indicators)
+
+    def _parse_camp_line_by_position(self, line: str, codes: List[str]) -> List[str]:
+        """
+        Parse a camp line using approximate character positions based on equal column widths.
+        This is more reliable than word-based parsing for the PDF column format.
+        """
+        camps = []
+
+        if not line.strip():
+            return [""] * len(codes)
+
+        # Calculate approximate column width
+        total_width = len(line)
+        column_width = total_width / len(codes)
+
+        for i in range(len(codes)):
+            # Calculate start and end positions for this column
+            start_pos = int(i * column_width)
+            end_pos = int((i + 1) * column_width) if i < len(codes) - 1 else len(line)
+
+            # Extract text from this column
+            column_text = line[start_pos:end_pos].strip()
+
+            if column_text:
+                # Clean up the column text to get the camp name
+                camp_name = self._extract_camp_from_column_text(column_text)
+                camps.append(camp_name)
+            else:
+                camps.append("")
+
+        return camps
+
+    def _parse_camp_sequence(self, words: List[str], expected_count: int) -> List[str]:
+        """
+        Parse a sequence of words into camp names by identifying boundaries.
+        Uses a smarter approach that tries different parsing strategies.
+        """
+        if not words:
+            return []
+
+        # Strategy 1: Try to parse assuming most camps are 2 words
+        camps_strategy1 = self._parse_assuming_two_words(words, expected_count)
+        if len(camps_strategy1) == expected_count:
+            return camps_strategy1
+
+        # Strategy 2: Use the pattern matching approach
+        camps = []
+        i = 0
+
+        while i < len(words) and len(camps) < expected_count:
+            # Try to extract the next camp name starting at position i
+            camp_name, words_consumed = self._extract_next_camp_name(words, i)
+
+            if camp_name:
+                camps.append(camp_name)
+                i += words_consumed
+            else:
+                # If we can't identify a camp, take one word and move on
+                camps.append(words[i])
+                i += 1
+
+        return camps
+
+    def _parse_assuming_two_words(
+        self, words: List[str], expected_count: int
+    ) -> List[str]:
+        """
+        Parse camp names using intelligent boundary detection.
+        """
+        camps = []
+
+        # Special case: If we have exactly expected_count * 2 words, assume each camp is 2 words
+        if len(words) == expected_count * 2:
+            for i in range(0, len(words), 2):
+                if i + 1 < len(words):
+                    camp_name = f"{words[i]} {words[i + 1]}"
+                    camps.append(camp_name)
+                else:
+                    camps.append(words[i])
+            return camps
+
+        # For other cases, use intelligent parsing by trying to identify camp boundaries
+        camps = self._parse_with_intelligent_boundaries(words, expected_count)
+        return camps
+
+    def _extract_camp_from_column_text(self, column_text: str) -> str:
+        """
+        Extract a clean camp name from column text.
+        """
+        if not column_text:
+            return ""
+
+        # Split into words and try to form a meaningful camp name
+        words = column_text.split()
+
+        if not words:
+            return ""
+
+        if len(words) == 1:
+            return words[0]
+
+        # Try to form a 2-word camp name using known patterns
+        if len(words) >= 2:
+            # Check if the first two words form a known camp pattern
+            two_word = f"{words[0]} {words[1]}".lower()
+
+            known_two_word_camps = {
+                "toothache springs",
+                "lovers leap",
+                "stockade ridge",
+                "miners park",
+                "black mountain",
+                "wild horse",
+                "mount phillips",
+                "cyphers mine",
+                "hunting lodge",
+                "tolby headwaters",
+                "clarks fork",
+                "lower bonito",
+                "lost cabins",
+                "crooked creek",
+                "lamberts mine",
+                "house canyon",
+                "indian writings",
+                "horse canyon",
+                "comanche creek",
+                "black horse",
+                "head of",
+                "new dean",
+                "shaefers pass",
+                "bear creek",
+                "apache springs",
+                "porcupine canyon",
+                "clear creek",
+                "copper park",
+                "deer lake",
+                "pueblano ruins",
+                "upper greenwood",
+                "baldy town",
+                "baldy skyline",
+                "ring place",
+                "iris park",
+                "metcalf station",
+                "dan beard",
+            }
+
+            if two_word.lower() in known_two_word_camps:
+                return f"{words[0]} {words[1]}"
+
+        # Check for common camp name endings that indicate 2-word names
+        if len(words) >= 2:
+            second_word_lower = words[1].lower()
+            if second_word_lower in [
+                "springs",
+                "leap",
+                "ridge",
+                "park",
+                "mountain",
+                "horse",
+                "phillips",
+                "mine",
+                "lodge",
+                "headwaters",
+                "fork",
+                "bonito",
+                "cabins",
+                "creek",
+                "canyon",
+                "writings",
+                "dean",
+                "pass",
+                "greenwood",
+                "town",
+                "skyline",
+                "place",
+                "station",
+                "beard",
+                "ruins",
+                "lake",
+            ]:
+                return f"{words[0]} {words[1]}"
+
+        # Default to first word if no good pattern found
+        return words[0]
+
+    def _extract_next_camp_name(
+        self, words: List[str], start_idx: int
+    ) -> tuple[str, int]:
+        """
+        Extract the next camp name starting at start_idx.
+        Returns (camp_name, words_consumed).
+        """
+        if start_idx >= len(words):
+            return "", 0
+
+        # Known two-word camp names that should be kept together
+        two_word_camps = {
+            "house canyon",
+            "horse canyon",
+            "metcalf station",
+            "dan beard",
+            "ring place",
+            "iris park",
+            "upper greenwood",
+            "baldy town",
+            "baldy skyline",
+            "miners park",
+            "clarks fork",
+            "deer lake",
+            "pueblano ruins",
+            "black mountain",
+            "wild horse",
+            "lost cabins",
+            "crater lake",
+            "french henry",
+            "flume canyon",
+            "heck meadow",
+            "toothache springs",
+            "indian writings",
+            "bear creek",
+            "mount phillips",
+            "porcupine canyon",
+            "clear creek",
+            "thunder ridge",
+            "crooked creek",
+            "hunting lodge",
+            "copper park",
+            "trail canyon",
+            "rich cabins",
+            "whistle punk",
+            "rimrock park",
+            "apache springs",
+            "new dean",
+            "stockade ridge",
+            "sawmill canyon",
+            "head of",
+            "chase cow",
+            "coyote howl",
+            "cyphers mine",
+            "comanche creek",
+            "buck creek",
+            "lower bonito",
+            "ewells park",
+            "shaefers pass",
+            "lovers leap",
+            "tolby headwaters",
+            "lamberts mine",
+            "comanche peak",
+            "devil's wash",
+            "red hills",
+            "bear caves",
+            "rabbit ear",
+            "little costilla",
+            "black jacks",
+            "touch-me-not creek",
+            "dean skyline",
+            "fish camp",
+            "black horse",
+            "agua fria",
+            "cimarron river",
+        }
+
+        # Check for three-word camps first (before two-word to avoid partial matches)
+        if start_idx + 2 < len(words):
+            if (
+                words[start_idx].lower() == "head"
+                and words[start_idx + 1].lower() == "of"
+            ):
+                return (
+                    f"{words[start_idx]} {words[start_idx + 1]} {words[start_idx + 2]}",
+                    3,
+                )
+            elif (
+                words[start_idx].lower() == "black"
+                and words[start_idx + 1].lower() == "horse"
+                and words[start_idx + 2].lower() == "creek"
+            ):
+                return (
+                    f"{words[start_idx]} {words[start_idx + 1]} {words[start_idx + 2]}",
+                    3,
+                )
+
+        # Check for two-word camps
+        if start_idx + 1 < len(words):
+            two_word = f"{words[start_idx]} {words[start_idx + 1]}".lower()
+            if two_word in two_word_camps:
+                return f"{words[start_idx]} {words[start_idx + 1]}", 2
+
+        # Check if the next word looks like it could be part of a camp name
+        if start_idx + 1 < len(words):
+            second_word = words[start_idx + 1].lower()
+            if second_word in [
+                "canyon",
+                "station",
+                "place",
+                "park",
+                "town",
+                "skyline",
+                "mountain",
+                "creek",
+                "lake",
+                "ruins",
+                "springs",
+                "ridge",
+                "lodge",
+                "cabins",
+                "mine",
+                "fork",
+                "meadow",
+                "writings",
+                "horse",
+                "beard",
+                "pass",
+                "cow",
+                "howl",
+            ]:
+                return f"{words[start_idx]} {words[start_idx + 1]}", 2
+
+        # Handle specific single words that should be expanded to known camp names
+        current_word = words[start_idx].lower()
+        if current_word == "apache":
+            return "Apache Springs", 1
+        elif current_word == "crooked":
+            return "Crooked Creek", 1
+
+        # Single word camp
+        return words[start_idx], 1
+
+    def _extract_best_camp_name(self, words: List[str]) -> str:
+        """
+        Extract the best camp name from a list of words.
+        Handles common multi-word camp name patterns.
+        """
+        if not words:
+            return ""
+
+        if len(words) == 1:
+            return words[0]
+
+        # Common two-word patterns
+        two_word_patterns = [
+            ("House", "Canyon"),
+            ("Metcalf", "Station"),
+            ("Dan", "Beard"),
+            ("Ring", "Place"),
+            ("Iris", "Park"),
+            ("Upper", "Greenwood"),
+            ("Baldy", "Town"),
+            ("Baldy", "Skyline"),
+            ("Miners", "Park"),
+            ("Clarks", "Fork"),
+            ("Deer", "Lake"),
+            ("Pueblano", "Ruins"),
+            ("Black", "Mountain"),
+            ("Wild", "Horse"),
+            ("Lost", "Cabins"),
+            ("Crater", "Lake"),
+            ("French", "Henry"),
+            ("Head", "of"),
+            ("Flume", "Canyon"),
+            ("Heck", "Meadow"),
+            ("Toothache", "Springs"),
+            ("Indian", "Writings"),
+            ("Bear", "Creek"),
+            ("Mount", "Phillips"),
+            ("Porcupine", "Canyon"),
+            ("Clear", "Creek"),
+            ("Thunder", "Ridge"),
+            ("Crooked", "Creek"),
+            ("Hunting", "Lodge"),
+            ("Copper", "Park"),
+            ("Trail", "Canyon"),
+            ("Rich", "Cabins"),
+            ("Whistle", "Punk"),
+            ("Touch-Me-Not", "Creek"),
+            ("Rimrock", "Park"),
+            ("Apache", "Springs"),
+            ("New", "Dean"),
+            ("Stockade", "Ridge"),
+            ("Sawmill", "Canyon"),
+        ]
+
+        # Check for exact two-word matches
+        if len(words) >= 2:
+            first_two = (words[0], words[1])
+            for pattern in two_word_patterns:
+                if first_two == pattern:
+                    return f"{words[0]} {words[1]}"
+
+        # Check for three-word patterns like "Head of Dean"
+        if len(words) >= 3 and words[0] == "Head" and words[1] == "of":
+            return f"{words[0]} {words[1]} {words[2]}"
+
+        # Check for compound names that might be run together
+        first_word = words[0]
+        if len(first_word) > 8:  # Might be two words run together
+            # Try to split known compound words
+            compound_splits = {
+                "HouseCanyon": "House Canyon",
+                "MetcalfStation": "Metcalf Station",
+                "RingPlace": "Ring Place",
+                "IrisPark": "Iris Park",
+                "UpperGreenwood": "Upper Greenwood",
+                "BaldyTown": "Baldy Town",
+                "BaldySkyline": "Baldy Skyline",
+                "Minerspark": "Miners Park",
+                "ClarksFork": "Clarks Fork",
+                "DeerLake": "Deer Lake",
+                "PueblanoRuins": "Pueblano Ruins",
+            }
+
+            if first_word in compound_splits:
+                return compound_splits[first_word]
+
+        # Look for common second words that indicate multi-word names
+        if len(words) >= 2:
+            second_word = words[1].lower()
+            if second_word in [
+                "canyon",
+                "station",
+                "place",
+                "park",
+                "town",
+                "skyline",
+                "mountain",
+                "creek",
+                "lake",
+                "ruins",
+                "springs",
+                "ridge",
+                "lodge",
+                "cabins",
+                "mine",
+                "fork",
+                "meadow",
+                "writings",
+                "horse",
+                "beard",
+            ]:
+                return f"{words[0]} {words[1]}"
+
+        # Default to first word if no patterns match
+        return words[0]
+
+    def _looks_like_camp_name(self, text: str) -> bool:
+        """
+        Check if a text string looks like a camp name.
+        """
+        if not text or len(text) < 4:
+            return False
+
+        # Must start with a capital letter (proper noun)
+        if not text[0].isupper():
+            return False
+
+        # Must contain mostly letters
+        letter_count = sum(1 for c in text if c.isalpha())
+        if letter_count < len(text) * 0.6:  # At least 60% letters
+            return False
+
+        # Common camp name patterns/keywords
+        camp_keywords = [
+            "camp",
+            "canyon",
+            "creek",
+            "mountain",
+            "lake",
+            "springs",
+            "park",
+            "ridge",
+            "mine",
+            "town",
+            "cabin",
+            "beard",
+            "dean",
+            "ponil",
+            "abreu",
+            "miranda",
+            "baldy",
+            "beaubien",
+            "valley",
+            "meadow",
+            "peak",
+            "divide",
+            "pass",
+            "ranch",
+            "ruins",
+            "station",
+            "skyline",
+            "lodge",
+            "cow",
+        ]
+
+        text_lower = text.lower()
+        contains_keyword = any(keyword in text_lower for keyword in camp_keywords)
+
+        # Accept if it contains a camp keyword or looks like a proper noun
+        return contains_keyword or (text[0].isupper() and len(text) >= 5)
+
+    def _normalize_camp_name(self, raw_name: str) -> Optional[str]:
+        """
+        Normalize camp names to match database entries.
+        """
+        if not raw_name:
+            return None
+
+        # Clean up the name
+        name = raw_name.strip()
+        if not name:
+            return None
+
+        # Remove common suffixes/prefixes that might be artifacts
+        name = re.sub(r"^(Day\s*\d+|Camp\s*)", "", name, flags=re.IGNORECASE).strip()
+
+        # Skip very short names that are likely artifacts or text fragments
+        if len(name) < 4:
+            return None
+
+        # Skip numeric-only names
+        if name.isdigit():
+            return None
+
+        # Skip common non-camp words that might appear
+        skip_words = {
+            "the",
+            "and",
+            "or",
+            "at",
+            "in",
+            "on",
+            "of",
+            "to",
+            "for",
+            "with",
+            "by",
+            "day",
+            "night",
+            "camp",
+            "trail",
+            "mile",
+            "miles",
+            "mi",
+            "from",
+            "base",
+            "are",
+            "is",
+            "was",
+            "were",
+            "has",
+            "have",
+            "had",
+            "will",
+            "would",
+            "could",
+        }
+
+        # Skip specific non-backcountry locations
+        skip_locations = {"camping hq"}
+
+        if name.lower() in skip_words or name.lower() in skip_locations:
+            return None
+
+        # Only accept names that look like proper camp names
+        # (contain letters and possibly spaces, numbers, or common camp name patterns)
+        if not re.match(r"^[A-Za-z][A-Za-z\s\-\'0-9]*$", name):
+            return None
+
+        return name
+
+    def _get_max_camps_for_itinerary(self, itinerary_code: str) -> int:
+        """
+        Get the maximum number of camps for an itinerary based on its type.
+        """
+        trek_type = self.identify_trek_type(itinerary_code)
+
+        if trek_type == "12-day":
+            return 10
+        elif trek_type == "9-day":
+            return 7
+        elif trek_type == "7-day":
+            return 5
+        elif trek_type == "cavalcade":
+            return 6
+        else:
+            return 8  # Default fallback
+
     def import_trek_data(self, pdf_path: str, year: int, dry_run: bool = False) -> int:
         """
         Import trek data from PDF into database.
@@ -451,6 +1372,13 @@ class PhilmontTrekImporter:
                 f"Found program data for {sum(len(itins) for itins in program_data.values())} program-itinerary relationships"
             )
 
+        # Extract camp data from "Itineraries at a Glance" sections
+        camp_data = self.extract_camp_data(pdf_path)
+        if camp_data:
+            print(
+                f"Found camp data for {sum(len(camps) for camps in camp_data.values())} itinerary-camp relationships"
+            )
+
         if dry_run:
             print("\n=== DRY RUN - No database changes will be made ===")
             for code, data in all_treks.items():
@@ -460,6 +1388,11 @@ class PhilmontTrekImporter:
                 for program_name in list(program_data.keys())[:5]:
                     itineraries = program_data[program_name]
                     print(f"  {program_name}: {len(itineraries)} itineraries")
+            if camp_data:
+                print("\nCamp Data Sample:")
+                for itinerary_code in list(camp_data.keys())[:5]:
+                    camps = camp_data[itinerary_code]
+                    print(f"  {itinerary_code}: {len(camps)} camps")
             return len(all_treks)
 
         # Clean up existing data for this year before import
@@ -471,6 +1404,10 @@ class PhilmontTrekImporter:
         # Import program data
         if program_data:
             self._import_program_data(program_data, year)
+
+        # Import camp data
+        if camp_data:
+            self._import_camp_data(camp_data, year)
 
         return imported_count
 
@@ -754,6 +1691,141 @@ class PhilmontTrekImporter:
             # If there's significant word overlap, consider it a match
             if len(program_words & db_words) >= min(2, len(program_words)):
                 return program_id
+
+        return None
+
+    def _import_camp_data(self, camp_data: Dict[str, List[str]], year: int) -> int:
+        """
+        Import camp data into the itinerary_camps table.
+
+        Returns number of camp-itinerary relationships imported.
+        """
+        conn = self.connect_db()
+        imported_count = 0
+
+        try:
+            cursor = conn.cursor()
+
+            print(f"\nImporting camp data for year {year}")
+
+            # Get all camp IDs and names from database
+            cursor.execute("SELECT id, name FROM camps")
+            db_camps = {row[1]: row[0] for row in cursor.fetchall()}  # name -> id
+
+            # Get all itinerary IDs for this year
+            cursor.execute(
+                "SELECT id, itinerary_code FROM itineraries WHERE year = ?", (year,)
+            )
+            db_itineraries = {row[1]: row[0] for row in cursor.fetchall()}  # code -> id
+
+            camps_found = 0
+            camps_not_found = []
+
+            for itinerary_code, camp_names in camp_data.items():
+                if itinerary_code not in db_itineraries:
+                    print(f"Warning: Itinerary {itinerary_code} not found in database")
+                    continue
+
+                itinerary_id = db_itineraries[itinerary_code]
+
+                # Track camps visited in this itinerary to identify layovers
+                visited_camps = set()
+
+                # Import each camp for this itinerary
+                for day_number, camp_name in enumerate(
+                    camp_names, 2
+                ):  # Start from day 2 (day 1 is base camp)
+                    camp_id = None
+
+                    # Try to find camp by exact name match
+                    if camp_name in db_camps:
+                        camp_id = db_camps[camp_name]
+                        camps_found += 1
+                    else:
+                        # Try fuzzy matching for common variations
+                        camp_id = self._find_camp_by_fuzzy_match(camp_name, db_camps)
+                        if camp_id:
+                            camps_found += 1
+                        else:
+                            camps_not_found.append(camp_name)
+                            continue
+
+                    # Determine if this is a layover (revisiting a camp)
+                    is_layover = camp_id in visited_camps
+                    visited_camps.add(camp_id)
+
+                    try:
+                        # Insert or update itinerary_camps relationship
+                        cursor.execute(
+                            """
+                            INSERT OR REPLACE INTO itinerary_camps 
+                            (itinerary_id, day_number, camp_id, is_layover, year)
+                            VALUES (?, ?, ?, ?, ?)
+                        """,
+                            (itinerary_id, day_number, camp_id, is_layover, year),
+                        )
+
+                        imported_count += 1
+
+                        # Log layovers for verification
+                        if is_layover:
+                            print(
+                                f"    Layover detected: {itinerary_code} day {day_number} at {camp_name}"
+                            )
+
+                    except sqlite3.Error as e:
+                        print(
+                            f"Error importing camp relationship {camp_name} -> {itinerary_code}: {e}"
+                        )
+                        continue
+
+            conn.commit()
+
+            print(
+                f"Successfully imported {imported_count} camp-itinerary relationships"
+            )
+            print(f"Camps found in database: {camps_found}")
+
+            if camps_not_found:
+                # Remove duplicates and show unique camp names not found
+                unique_not_found = list(set(camps_not_found))
+                print(f"Camps not found in database ({len(unique_not_found)}):")
+                for camp in unique_not_found[:15]:  # Show first 15
+                    print(f"  - {camp}")
+                if len(unique_not_found) > 15:
+                    print(f"  ... and {len(unique_not_found) - 15} more")
+
+        except sqlite3.Error as e:
+            print(f"Database error during camp import: {e}")
+            conn.rollback()
+        finally:
+            conn.close()
+
+        return imported_count
+
+    def _find_camp_by_fuzzy_match(
+        self, camp_name: str, db_camps: Dict[str, int]
+    ) -> Optional[int]:
+        """
+        Try to find a camp by fuzzy name matching.
+        """
+        camp_lower = camp_name.lower()
+
+        # Try partial matches
+        for db_name, camp_id in db_camps.items():
+            db_name_lower = db_name.lower()
+
+            # Check if the extracted camp name is contained in a database camp name
+            if camp_lower in db_name_lower or db_name_lower in camp_lower:
+                return camp_id
+
+            # Check for key word matches (for compound names)
+            camp_words = set(camp_lower.split())
+            db_words = set(db_name_lower.split())
+
+            # If there's significant word overlap, consider it a match
+            if len(camp_words & db_words) >= min(2, len(camp_words)):
+                return camp_id
 
         return None
 
