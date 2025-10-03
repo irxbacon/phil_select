@@ -4,37 +4,45 @@ This repository uses GitHub Actions to automatically build PyInstaller executabl
 
 ## Workflows
 
-### 1. `release.yml` - Release Distribution
-**Triggers:** Creating a GitHub release
-**Purpose:** Attach executables to official releases
+### 1. `ci.yml` - Continuous Integration
+**Triggers:** Push to main branch and pull requests
+**Purpose:** Fast testing and validation for development
 
 **What it does:**
-- Builds executables for all platforms
-- Automatically attaches them to the GitHub release
-- Makes them available as release assets
+- Runs linting with flake8
+- Tests application startup
+- Validates database schema
+- Runs security scans (Bandit and Safety)
+
+### 2. `build-release.yml` - Comprehensive Release Pipeline
+**Triggers:** Creating a GitHub release
+**Purpose:** Full testing, validation, and release distribution
+
+**What it does:**
+- Tests database integrity and validates data exists
+- Validates application startup and database queries
+- Builds executables for Linux, Windows, and macOS
+- Verifies executable properties and brief runtime tests
+- Uploads executables as GitHub artifacts (30-day retention)
+- Automatically attaches executables to GitHub releases
+- Generates detailed build information and usage instructions
 
 **How to use:**
 1. Create a new release in GitHub (Releases → Create a new release)
 2. Choose a tag (e.g., `v1.0.0`)
-3. GitHub Actions will automatically build and attach executables
+3. GitHub Actions will automatically:
+   - Validate the codebase and database
+   - Build and test executables for all platforms
+   - Attach executables to the release
+   - Generate build documentation
 4. Users can download directly from the release page
-
-### 2. `build-release.yml` - Comprehensive Build
-**Triggers:** GitHub releases only
-**Purpose:** Full testing and validation pipeline
-
-**What it does:**
-- Tests database integrity
-- Validates application startup
-- Builds executables with verification
-- Provides detailed build information
 
 ## File Structure
 
 ```
 .github/
 └── workflows/
-    ├── release.yml         # Simple release automation
+    ├── ci.yml              # Continuous integration (testing)
     └── build-release.yml   # Comprehensive release pipeline
 ```
 

@@ -4,6 +4,10 @@ on:
   release:
     types: [ created ]
 
+permissions:
+  contents: write
+  packages: write
+
 jobs:
   build:
     runs-on: ${{ matrix.os }}
@@ -93,8 +97,7 @@ jobs:
       uses: softprops/action-gh-release@v2
       with:
         files: dist/${{ matrix.executable_name }}
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        token: ${{ secrets.GITHUB_TOKEN }}
 
   create-release-info:
     needs: build
