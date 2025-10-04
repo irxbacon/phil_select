@@ -1012,6 +1012,7 @@ class PhilmontTrekImporter:
             "black horse",
             "agua fria",
             "cimarron river",
+            "little twin",
         }
 
         # Check for three-word camps first (before two-word to avoid partial matches)
@@ -1028,6 +1029,15 @@ class PhilmontTrekImporter:
                 words[start_idx].lower() == "black"
                 and words[start_idx + 1].lower() == "horse"
                 and words[start_idx + 2].lower() == "creek"
+            ):
+                return (
+                    f"{words[start_idx]} {words[start_idx + 1]} {words[start_idx + 2]}",
+                    3,
+                )
+            elif (
+                words[start_idx].lower() == "black"
+                and words[start_idx + 1].lower() == "horse"
+                and words[start_idx + 2].lower() == "mine"
             ):
                 return (
                     f"{words[start_idx]} {words[start_idx + 1]} {words[start_idx + 2]}",
