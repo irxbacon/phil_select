@@ -17,7 +17,7 @@
                     {% endif %}
                 </p>
             </div>
-            <a href="{{ url_for('index') }}" class="btn btn-outline-secondary">
+            <a href="{{ url_for('base_routes.index') }}" class="btn btn-outline-secondary">
                 <i class="fas fa-arrow-left"></i> Back to Home
             </a>
         </div>
@@ -58,7 +58,7 @@
                                 <td>{{ crew.created_at[:10] }}</td>
                                 <td>
                                     <div class="btn-group btn-group-sm">
-                                        <a href="{{ url_for('admin', crew_id=crew.id) }}" class="btn btn-outline-primary">
+                                        <a href="{{ url_for('admin_routes.admin', crew_id=crew.id) }}" class="btn btn-outline-primary">
                                             <i class="fas fa-edit"></i> Manage
                                         </a>
                                         <form method="POST" action="{{ url_for('remove_crew_from_contingent', contingent_id=contingent.id) }}" class="d-inline" 

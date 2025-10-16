@@ -34,7 +34,7 @@ def index():
             crew_id = user["crew_id"]
         else:
             flash("No crew assigned to your account. Contact administrator.", "error")
-            return redirect(url_for("logout"))
+            return redirect(url_for("admin_routes.logout"))
 
     conn.close()
 
@@ -56,7 +56,7 @@ def preferences():
 
     if not crew_id:
         flash("No crew available. Contact administrator.", "error")
-        return redirect(url_for("logout"))
+        return redirect(url_for("admin_routes.logout"))
 
     conn = get_db_connection()
 
@@ -241,4 +241,4 @@ def save_preferences():
     conn.close()
     flash("Preferences saved successfully!", "success")
 
-    return redirect(url_for("preferences", crew_id=crew_id))
+    return redirect(url_for("base_routes.preferences", crew_id=crew_id))

@@ -53,7 +53,7 @@ def login():
                 conn.close()
 
                 flash("Successfully logged in as admin", "success")
-                return redirect(url_for("admin"))
+                return redirect(url_for("admin_routes.admin"))
 
         # Regular user authentication
         elif username and password:
@@ -71,11 +71,11 @@ def login():
 
                 if user["is_admin"]:
                     flash("Successfully logged in as admin", "success")
-                    return redirect(url_for("admin"))
+                    return redirect(url_for("admin_routes.admin"))
                 else:
                     flash(f"Welcome back, {user['username']}!", "success")
                     # Redirect to preferences for their crew
-                    return redirect(url_for("preferences", crew_id=user["crew_id"]))
+                    return redirect(url_for("base_routes.preferences", crew_id=user["crew_id"]))
             else:
                 flash("Invalid username or password", "error")
         else:
@@ -89,7 +89,7 @@ def logout():
     """Logout and clear session"""
     session.clear()  # Clear all session data
     flash("Successfully logged out", "success")
-    return redirect(url_for("index"))
+    return redirect(url_for("base_routes.index"))
 
 
 @admin_routes.route("/admin")
@@ -153,7 +153,7 @@ def edit_crew():
 
     if not crew_id or not crew_name:
         flash("Crew ID and name are required.", "error")
-        return redirect(url_for("admin"))
+        return redirect(url_for("admin_routes.admin"))
 
     conn = get_db_connection()
 
@@ -176,7 +176,7 @@ def edit_crew():
     finally:
         conn.close()
 
-    return redirect(url_for("admin", crew_id=crew_id))
+    return redirect(url_for("admin_routes.admin", crew_id=crew_id))
 
 
 @admin_routes.route("/admin/add_member", methods=["POST"])
@@ -194,8 +194,8 @@ def add_member():
     if not crew_id or not name:
         flash("Crew and name are required.", "error")
         if redirect_to == "preferences":
-            return redirect(url_for("preferences"))
-        return redirect(url_for("admin", crew_id=crew_id))
+            return redirect(url_for("base_routes.preferences"))
+        return redirect(url_for("admin_routes.admin", crew_id=crew_id))
 
     conn = get_db_connection()
 
@@ -232,8 +232,8 @@ def add_member():
 
     # Redirect based on the source page
     if redirect_to == "preferences":
-        return redirect(url_for("preferences"))
-    return redirect(url_for("admin", crew_id=crew_id))
+        return redirect(url_for("base_routes.preferences"))
+    return redirect(url_for("admin_routes.admin", crew_id=crew_id))
 
 
 @admin_routes.route("/admin/edit_member", methods=["POST"])
@@ -248,7 +248,7 @@ def edit_member():
 
     if not member_id or not name:
         flash("Member ID and name are required.", "error")
-        return redirect(url_for("admin", crew_id=crew_id))
+        return redirect(url_for("admin_routes.admin", crew_id=crew_id))
 
     conn = get_db_connection()
 
@@ -283,7 +283,7 @@ def edit_member():
     finally:
         conn.close()
 
-    return redirect(url_for("admin", crew_id=crew_id))
+    return redirect(url_for("admin_routes.admin", crew_id=crew_id))
 
 
 @admin_routes.route("/admin/delete_member", methods=["POST"])
@@ -298,8 +298,8 @@ def delete_member():
     if not member_id:
         flash("Member ID is required.", "error")
         if redirect_to == "preferences":
-            return redirect(url_for("preferences"))
-        return redirect(url_for("admin", crew_id=crew_id))
+            return redirect(url_for("base_routes.preferences"))
+        return redirect(url_for("admin_routes.admin", crew_id=crew_id))
 
     conn = get_db_connection()
 
@@ -338,8 +338,8 @@ def delete_member():
 
     # Redirect based on the source page
     if redirect_to == "preferences":
-        return redirect(url_for("preferences"))
-    return redirect(url_for("admin", crew_id=crew_id))
+        return redirect(url_for("base_routes.preferences"))
+    return redirect(url_for("admin_routes.admin", crew_id=crew_id))
 
 
 @admin_routes.route("/admin/delete_all_members", methods=["POST"])
@@ -349,7 +349,7 @@ def delete_all_members():
 
     if not crew_id:
         flash("Crew ID is required.", "error")
-        return redirect(url_for("preferences"))
+        return redirect(url_for("base_routes.preferences"))
 
     conn = get_db_connection()
 
@@ -361,7 +361,7 @@ def delete_all_members():
 
         if member_count == 0:
             flash("No crew members to delete.", "info")
-            return redirect(url_for("preferences"))
+            return redirect(url_for("base_routes.preferences"))
 
         # Delete program scores first (foreign key constraint)
         conn.execute("DELETE FROM program_scores WHERE crew_id = ?", (crew_id,))
@@ -390,7 +390,7 @@ def delete_all_members():
     finally:
         conn.close()
 
-    return redirect(url_for("preferences"))
+    return redirect(url_for("base_routes.preferences"))
 
 
 # ===================================
@@ -434,19 +434,19 @@ def admin_create_user():
     # Validation
     if not username:
         flash("Username is required", "error")
-        return redirect(url_for("admin_users"))
+        return redirect(url_for("admin_routes.admin_users"))
 
     if not password:
         flash("Password is required", "error")
-        return redirect(url_for("admin_users"))
+        return redirect(url_for("admin_routes.admin_users"))
 
     if not is_admin and not crew_id:
         flash("Regular users must be assigned to a crew", "error")
-        return redirect(url_for("admin_users"))
+        return redirect(url_for("admin_routes.admin_users"))
 
     if is_admin and crew_id:
         flash("Admin users cannot be assigned to a specific crew", "error")
-        return redirect(url_for("admin_users"))
+        return redirect(url_for("admin_routes.admin_users"))
 
     # Create user
     user_id = create_user(
@@ -458,7 +458,7 @@ def admin_create_user():
     else:
         flash(f'Error creating user "{username}" - username may already exist', "error")
 
-    return redirect(url_for("admin_users"))
+    return redirect(url_for("admin_routes.admin_users"))
 
 
 @admin_routes.route("/admin/users/<int:user_id>/delete", methods=["POST"])
@@ -478,7 +478,7 @@ def delete_user(user_id):
             current_user = get_current_user()
             if user_id == current_user["id"]:
                 flash("Cannot delete your own account while logged in", "error")
-                return redirect(url_for("admin_users"))
+                return redirect(url_for("admin_routes.admin_users"))
 
             # Delete the user
             conn.execute("DELETE FROM users WHERE id = ?", (user_id,))
@@ -493,7 +493,7 @@ def delete_user(user_id):
     finally:
         conn.close()
 
-    return redirect(url_for("admin_users"))
+    return redirect(url_for("admin_routes.admin_users"))
 
 
 @admin_routes.route("/admin/users/<int:user_id>/toggle-active", methods=["POST"])
@@ -526,4 +526,4 @@ def toggle_user_active(user_id):
     finally:
         conn.close()
 
-    return redirect(url_for("admin_users"))
+    return redirect(url_for("admin_routes.admin_users"))

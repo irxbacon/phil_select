@@ -5,7 +5,7 @@
 {% block content %}
 <div class="d-flex justify-content-between align-items-center mb-4">
     <h1><i class="fas fa-users"></i> User Management</h1>
-    <a href="{{ url_for('admin') }}" class="btn btn-outline-secondary">
+    <a href="{{ url_for('admin_routes.admin') }}" class="btn btn-outline-secondary">
         <i class="fas fa-arrow-left"></i> Back to Admin
     </a>
 </div>
@@ -27,7 +27,7 @@
         <h5 class="mb-0"><i class="fas fa-user-plus"></i> Create New User</h5>
     </div>
     <div class="card-body">
-        <form method="POST" action="{{ url_for('create_user') }}">
+        <form method="POST" action="{{ url_for('admin_routes.admin_create_user') }}">
             <div class="row">
                 <div class="col-md-3">
                     <div class="mb-3">
@@ -133,7 +133,7 @@
                                 <td class="text-center">
                                     <div class="btn-group btn-group-sm">
                                         <!-- Toggle Active Status -->
-                                        <form method="POST" action="{{ url_for('toggle_user_active', user_id=user.id) }}" class="d-inline">
+                                        <form method="POST" action="{{ url_for('admin_routes.toggle_user_active', user_id=user.id) }}" class="d-inline">
                                             {% if user.is_active %}
                                                 <button type="submit" class="btn btn-outline-warning" title="Deactivate User">
                                                     <i class="fas fa-pause"></i>
@@ -147,7 +147,7 @@
                                         
                                         <!-- Delete User -->
                                         {% if current_user.id != user.id %}
-                                            <form method="POST" action="{{ url_for('delete_user', user_id=user.id) }}" class="d-inline" onsubmit="return confirm('Are you sure you want to delete user {{ user.username }}? This action cannot be undone.')">
+                                            <form method="POST" action="{{ url_for('admin_routes.delete_user', user_id=user.id) }}" class="d-inline" onsubmit="return confirm('Are you sure you want to delete user {{ user.username }}? This action cannot be undone.')">
                                                 <button type="submit" class="btn btn-outline-danger" title="Delete User">
                                                     <i class="fas fa-trash"></i>
                                                 </button>

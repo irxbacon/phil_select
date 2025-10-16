@@ -28,7 +28,7 @@ def program_chart():
 
     if not crew_id:
         flash("No crew available. Contact administrator.", "error")
-        return redirect(url_for("logout"))
+        return redirect(url_for("admin_routes.logout"))
 
     conn = get_db_connection()
 
@@ -87,7 +87,7 @@ def itinerary_detail(code):
 
     if not itinerary:
         flash(f"Itinerary {code} not found", "error")
-        return redirect(url_for("results"))
+        return redirect(url_for("scoring_routes.results"))
 
     # Get camps for this itinerary
     camps = conn.execute(

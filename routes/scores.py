@@ -27,7 +27,7 @@ def scores():
 
     if not crew_id:
         flash("No crew available. Contact administrator.", "error")
-        return redirect(url_for("logout"))
+        return redirect(url_for("admin_routes.logout"))
 
     conn = get_db_connection()
 
@@ -95,7 +95,7 @@ def save_scores():
     conn.close()
     flash("Scores saved successfully!", "success")
 
-    return redirect(url_for("scores", crew_id=crew_id))
+    return redirect(url_for("scoring_routes.scores", crew_id=crew_id))
 
 
 @scoring_routes.route("/results")
@@ -114,7 +114,7 @@ def results():
 
     if not crew_id:
         flash("No crew available. Contact administrator.", "error")
-        return redirect(url_for("logout"))
+        return redirect(url_for("admin_routes.logout"))
 
     conn = get_db_connection()
 
@@ -132,7 +132,7 @@ def results():
 
     if not crew_id:
         flash("No crews found. Please create a crew first.", "error")
-        return redirect(url_for("admin"))
+        return redirect(url_for("admin_routes.admin"))
 
     trek_type = get_crew_trek_type(crew_id)
     scorer = PhilmontScorer(crew_id, trek_type)

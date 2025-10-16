@@ -522,7 +522,7 @@
                 <button type="submit" class="btn btn-primary btn-lg">
                     <i class="fas fa-save"></i> Save Preferences
                 </button>
-                <a href="{{ url_for('scores') }}" class="btn btn-outline-primary btn-lg">
+                <a href="{{ url_for('scoring_routes.scores') }}" class="btn btn-outline-primary btn-lg">
                     Next: Score Programs <i class="fas fa-arrow-right"></i>
                 </a>
             </div>
@@ -540,7 +540,7 @@
                 </h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
-            <form method="POST" action="{{ url_for('add_member') }}" id="addMemberForm">
+            <form method="POST" action="{{ url_for('admin_routes.add_member') }}" id="addMemberForm">
                 <div class="modal-body">
                     <input type="hidden" name="crew_id" value="{{ crew.id if crew else '' }}">
                     <input type="hidden" name="redirect_to" value="preferences">
@@ -606,7 +606,7 @@
             // Create a form to submit the delete request
             const form = document.createElement('form');
             form.method = 'POST';
-            form.action = '{{ url_for("delete_member") }}';
+            form.action = '{{ url_for("admin_routes.delete_member") }}';
             
             const memberIdInput = document.createElement('input');
             memberIdInput.type = 'hidden';
@@ -643,7 +643,7 @@
             // Create a form to submit the delete all request
             const form = document.createElement('form');
             form.method = 'POST';
-            form.action = '{{ url_for("delete_all_members") }}';
+            form.action = '{{ url_for("admin_routes.delete_all_members") }}';
             
             const crewIdInput = document.createElement('input');
             crewIdInput.type = 'hidden';

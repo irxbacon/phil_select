@@ -56,11 +56,11 @@ def submit_survey():
     if member_type == "existing":
         if not existing_member_id:
             flash("Please select an existing crew member.", "error")
-            return redirect(url_for("survey"))
+            return redirect(url_for("survey_routes.survey"))
     else:
         if not name:
             flash("Please fill in all required fields (Name).", "error")
-            return redirect(url_for("survey"))
+            return redirect(url_for("survey_routes.survey"))
 
     try:
         if member_type == "existing" and existing_member_id:
@@ -162,8 +162,8 @@ def submit_survey():
     except Exception as e:
         conn.rollback()
         flash(f"Error submitting survey: {str(e)}", "error")
-        return redirect(url_for("survey"))
+        return redirect(url_for("survey_routes.survey"))
     finally:
         conn.close()
 
-    return redirect(url_for("survey"))
+    return redirect(url_for("survey_routes.survey"))

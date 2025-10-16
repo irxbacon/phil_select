@@ -10,7 +10,7 @@
                 <h1 class="display-4"><i class="fas fa-mountain"></i> Philmont Trek Selection</h1>
                 <p class="lead">Choose your perfect 12-day adventure at Philmont Scout Ranch</p>
                 <p>This digital tool replicates the functionality of the original Excel spreadsheet, helping your crew find the ideal trek itinerary based on your preferences and activity interests.</p>
-                <a href="{{ url_for('preferences') }}" class="btn btn-light btn-lg">
+                <a href="{{ url_for('base_routes.preferences') }}" class="btn btn-light btn-lg">
                     <i class="fas fa-play"></i> Get Started
                 </a>
             </div>
@@ -44,7 +44,7 @@
                     <li><i class="fas fa-arrow-up text-success"></i> Altitude considerations</li>
                     <li><i class="fas fa-flag-checkered text-success"></i> Peak climbing opportunities</li>
                 </ul>
-                <a href="{{ url_for('preferences') }}" class="btn btn-primary">
+                <a href="{{ url_for('base_routes.preferences') }}" class="btn btn-primary">
                     <i class="fas fa-cog"></i> Set Preferences
                 </a>
             </div>
@@ -65,7 +65,7 @@
                     <li><i class="fas fa-crosshairs text-primary"></i> Range sports & shooting</li>
                     <li><i class="fas fa-microscope text-primary"></i> STEM & outdoor skills</li>
                 </ul>
-                <a href="{{ url_for('scores') }}" class="btn btn-primary">
+                <a href="{{ url_for('scoring_routes.scores') }}" class="btn btn-primary">
                     <i class="fas fa-star"></i> Score Programs
                 </a>
             </div>
@@ -86,7 +86,7 @@
                     <li><i class="fas fa-info-circle text-warning"></i> Detailed itinerary information</li>
                     <li><i class="fas fa-route text-warning"></i> Daily camp schedules</li>
                 </ul>
-                <a href="{{ url_for('results') }}" class="btn btn-primary">
+                <a href="{{ url_for('scoring_routes.results') }}" class="btn btn-primary">
                     <i class="fas fa-trophy"></i> View Results
                 </a>
             </div>
