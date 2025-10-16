@@ -1,7 +1,9 @@
 #!/usr/bin/env python3
 
 import argparse
-
+import threading
+import time
+import webbrowser
 from functools import wraps
 
 from flask import (
@@ -56,6 +58,16 @@ def invalidate_crew_cache(crew_id):
     # This function can be used if we implement caching in the future
     pass
 
+def open_browser(port):
+    """Open web browser to the application URL after a short delay"""
+
+    def delayed_open():
+        time.sleep(1.5)  # Wait for Flask to start up
+        webbrowser.open(f"http://localhost:{port}")
+
+    thread = threading.Thread(target=delayed_open)
+    thread.daemon = True  # Dies when main thread dies
+    thread.start()
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Philmont Trek Selection Application")
@@ -68,6 +80,16 @@ if __name__ == "__main__":
         default=5002,
         help="Port to run the Flask app on (default: 5002)",
     )
+    parser.add_argument(
+        "--no-browser", action="store_true", help="Don't automatically open web browser"
+    )
     args = parser.parse_args()
+
+    # Automatically open browser unless disabled or in debug mode
+    if not args.no_browser and not args.debug:
+        open_browser(args.port)
+        print(f"Opening browser to http://localhost:{args.port}")
+    else:
+        print(f"Server starting at http://localhost:{args.port}")
 
     app.run(debug=args.debug, port=args.port)
