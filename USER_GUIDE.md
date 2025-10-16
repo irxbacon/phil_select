@@ -22,7 +22,11 @@ This guide shows you how to download and run the Philmont Trek Selection System 
 - **If still blocked:** Right-click → "Run as Administrator"
 
 **Mac:**
-- **First time:** Right-click → "Open" (don't double-click)
+- **First, make it executable:** Open Terminal and run:
+  ```bash
+  chmod +x ~/Downloads/philmont-trek-selector-macos
+  ```
+- **Then run:** Right-click the file → "Open" (don't double-click)
 - **If macOS blocks it:** Go to System Preferences → Security & Privacy → General → Click "Open Anyway"
 - **Alternative:** Hold Control while clicking → "Open"
 - **Note:** macOS may show "unidentified developer" warning - this is normal for open source apps
@@ -36,8 +40,8 @@ This guide shows you how to download and run the Philmont Trek Selection System 
 
 ### Step 3: Use the App
 1. The app will start automatically
-2. Open your web browser 
-3. Go to: **http://127.0.0.1:5002**
+2. **Your web browser will open automatically** to the app
+3. If the browser doesn't open, go to: **http://localhost:5002**
 4. Start planning your Philmont trek!
 
 ## 📋 What You Get
@@ -91,7 +95,7 @@ Use the recommendations to guide your official Philmont reservation through thei
 
 ### Browser Won't Connect
 - Make sure the app is still running (don't close the terminal window)
-- Try: http://localhost:5002 instead of http://127.0.0.1:5002
+- Try: http://127.0.0.1:5002 instead of http://localhost:5002
 - Check no other apps are using port 5002
 
 ### App Crashes
