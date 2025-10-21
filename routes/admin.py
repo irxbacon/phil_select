@@ -116,16 +116,16 @@ def admin():
             # Get crew members with survey completion status
             crew_members = conn.execute(
                 """
-                SELECT cm.*, 
-                       CASE 
+                SELECT cm.*,
+                       CASE
                            WHEN EXISTS (
-                               SELECT 1 FROM program_scores ps 
+                               SELECT 1 FROM program_scores ps
                                WHERE ps.crew_member_id = cm.id
-                           ) THEN 1 
-                           ELSE 0 
+                           ) THEN 1
+                           ELSE 0
                        END as survey_completed
-                FROM crew_members cm 
-                WHERE cm.crew_id = ? 
+                FROM crew_members cm
+                WHERE cm.crew_id = ?
                 ORDER BY cm.member_number
             """,
                 (selected_crew_id,),
@@ -140,7 +140,6 @@ def admin():
         selected_crew_id=selected_crew_id,
         crew_members=crew_members,
     )
-
 
 
 @admin_routes.route("/admin/edit_crew", methods=["POST"])
@@ -160,7 +159,7 @@ def edit_crew():
     try:
         conn.execute(
             """
-            UPDATE crews 
+            UPDATE crews
             SET crew_name = ?, crew_size = ?, updated_at = CURRENT_TIMESTAMP
             WHERE id = ?
         """,
@@ -255,7 +254,7 @@ def edit_member():
     try:
         conn.execute(
             """
-            UPDATE crew_members 
+            UPDATE crew_members
             SET name = ?, email = ?, age = ?, skill_level = ?
             WHERE id = ?
         """,

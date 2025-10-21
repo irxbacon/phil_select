@@ -1,0 +1,12 @@
+[flake8]
+ignore = E501
+
+exclude =
+    .git,
+    __pycache__,
+    .tox,
+    .venv,
+    build,
+    dist,
+    docs,
+    tests

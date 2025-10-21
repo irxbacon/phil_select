@@ -195,10 +195,10 @@ def save_preferences():
         # Insert new preferences
         conn.execute(
             """
-            INSERT INTO crew_preferences 
+            INSERT INTO crew_preferences
             (crew_id, area_important, area_rank_south, area_rank_central, area_rank_north, area_rank_valle_vidal,
-             max_altitude_important, total_elevation_gain_important, altitude_change_important, daily_altitude_change_threshold, difficulty_challenging, difficulty_rugged, 
-             difficulty_strenuous, difficulty_super_strenuous, climb_baldy, climb_phillips, climb_tooth, 
+             max_altitude_important, total_elevation_gain_important, altitude_change_important, daily_altitude_change_threshold, difficulty_challenging, difficulty_rugged,
+             difficulty_strenuous, difficulty_super_strenuous, climb_baldy, climb_phillips, climb_tooth,
              climb_inspiration_point, climb_trail_peak, climb_others, hike_in_preference, hike_out_preference, programs_important, adult_program_weight_enabled, adult_program_weight_percent, max_dry_camps, showers_required, layovers_required, prefer_low_starting_food, prefer_shorter_resupply)
             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         """,

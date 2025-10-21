@@ -17,9 +17,9 @@ def get_current_user():
     conn = get_db_connection()
     user = conn.execute(
         """
-        SELECT u.*, c.crew_name 
-        FROM users u 
-        LEFT JOIN crews c ON u.crew_id = c.id 
+        SELECT u.*, c.crew_name
+        FROM users u
+        LEFT JOIN crews c ON u.crew_id = c.id
         WHERE u.id = ? AND u.is_active = TRUE
     """,
         (user_id,),
@@ -45,7 +45,6 @@ def get_user_crew_id():
     if result:
         return result["id"]
     return 1  # Fallback to crew id 1
-
 
 
 def get_crew_info(crew_id=1):
@@ -78,8 +77,8 @@ def get_existing_scores(crew_id=1):
     conn = get_db_connection()
     scores = conn.execute(
         """
-        SELECT crew_member_id, program_id, score 
-        FROM program_scores 
+        SELECT crew_member_id, program_id, score
+        FROM program_scores
         WHERE crew_id = ?
     """,
         (crew_id,),

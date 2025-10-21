@@ -70,10 +70,10 @@ def submit_survey():
             if name or email or age or skill_level:
                 conn.execute(
                     """
-                    UPDATE crew_members 
-                    SET name = COALESCE(?, name), 
-                        email = COALESCE(?, email), 
-                        age = COALESCE(?, age), 
+                    UPDATE crew_members
+                    SET name = COALESCE(?, name),
+                        email = COALESCE(?, email),
+                        age = COALESCE(?, age),
                         skill_level = COALESCE(?, skill_level)
                     WHERE id = ? AND crew_id = ?
                 """,
@@ -100,7 +100,7 @@ def submit_survey():
                 # Update existing crew member info including email
                 conn.execute(
                     """
-                    UPDATE crew_members 
+                    UPDATE crew_members
                     SET name = ?, email = ?, age = ?, skill_level = ?
                     WHERE id = ?
                 """,

@@ -3,6 +3,8 @@
 import os
 import shutil
 import sqlite3
+import sys
+
 
 def get_database_path():
     """Get database path - always in the current working directory for persistence"""

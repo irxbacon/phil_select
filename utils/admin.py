@@ -57,7 +57,7 @@ def authenticate_user(username, password):
     conn = get_db_connection()
     user = conn.execute(
         """
-        SELECT * FROM users 
+        SELECT * FROM users
         WHERE username = ? AND is_active = TRUE
     """,
         (username,),

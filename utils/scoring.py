@@ -63,7 +63,7 @@ class PhilmontScorer:
         skill_data = conn.execute(
             """
             SELECT AVG(skill_level) as avg_skill
-            FROM crew_members 
+            FROM crew_members
             WHERE crew_id = ? AND skill_level IS NOT NULL
         """,
             (self.crew_id,),
@@ -100,8 +100,8 @@ class PhilmontScorer:
         conn = get_db_connection()
         factors = conn.execute(
             """
-            SELECT factor_code, multiplier 
-            FROM scoring_factors 
+            SELECT factor_code, multiplier
+            FROM scoring_factors
             WHERE is_active = TRUE
         """
         ).fetchall()
@@ -288,8 +288,8 @@ class PhilmontScorer:
         # Get programs available for this itinerary based on trek type
         available_programs = conn.execute(
             """
-            SELECT ip.program_id 
-            FROM itinerary_programs ip 
+            SELECT ip.program_id
+            FROM itinerary_programs ip
             WHERE ip.itinerary_id = ? AND ip.is_available = 1 AND ip.trek_type = ?
         """,
             (itinerary_id, self.trek_type),
@@ -631,8 +631,8 @@ class PhilmontScorer:
                 # Get all scores for this program for this crew
                 score_results = conn.execute(
                     """
-                    SELECT score 
-                    FROM program_scores 
+                    SELECT score
+                    FROM program_scores
                     WHERE program_id = ? AND crew_id = ?
                     """,
                     (program_id, self.crew_id),
@@ -684,11 +684,12 @@ def recalculate_crew_scores(crew_id):
                 f"Recalculated {method} scores for crew {crew_id}: {len(program_scores)} programs"
             )
 
-        # Update crew preferences if needed (mark that scores have been updated)
+        # Update crew preferences if needed
+        # (mark that scores have been updated)
         conn.execute(
             """
-            UPDATE crews 
-            SET updated_at = CURRENT_TIMESTAMP 
+            UPDATE crews
+            SET updated_at = CURRENT_TIMESTAMP
             WHERE id = ?
         """,
             (crew_id,),

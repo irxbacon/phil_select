@@ -29,9 +29,9 @@ def api_crews():
         # Regular users only see their assigned crew
         crews = conn.execute(
             """
-            SELECT id, crew_name, crew_size 
-            FROM crews 
-            WHERE id = ? 
+            SELECT id, crew_name, crew_size
+            FROM crews
+            WHERE id = ?
             ORDER BY crew_name
         """,
             (user["crew_id"],),
@@ -80,8 +80,8 @@ def api_crew_members(crew_id):
     crew_members = conn.execute(
         """
         SELECT id, name, email, age, skill_level
-        FROM crew_members 
-        WHERE crew_id = ? 
+        FROM crew_members
+        WHERE crew_id = ?
         ORDER BY member_number
     """,
         (crew_id,),
