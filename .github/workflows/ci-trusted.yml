@@ -1,0 +1,42 @@
+# Full CI (trusted): manual trigger by maintainers and on pushes to main.
+# Uses a protected environment for secrets; do not run automatically for forks.
+name: Full CI (trusted)
+
+on:
+  workflow_dispatch: {}       # manual trigger by a maintainer
+  push:
+    branches: [ main ]        # run on merges to main as usual
+
+permissions:
+  contents: read
+
+jobs:
+  full-tests:
+    name: Full tests (requires environment approval)
+    runs-on: ubuntu-latest
+    environment: ci-secrets    # Protected environment providing secrets after approval
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.9
+        uses: actions/setup-python@v5
+        with:
+          python-version: 3.9
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install flake8 pytest bandit safety
+
+      - name: Run security scans
+        run: |
+          bandit -r . -f json -o bandit-report.json || true
+          bandit -r . --severity-level medium
+          safety check --json --output safety-report.json || true
+          safety check --short-report
+
+      - name: Run full test suite (integration, DB, etc.)
+        run: |
+          pytest -q
