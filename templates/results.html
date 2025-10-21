@@ -115,7 +115,7 @@
                                     {% endif %}
                                 </td>
                                 <td>
-                                    <a href="{{ url_for('itinerary_detail', code=result.itinerary.itinerary_code) }}" class="text-decoration-none">
+                                    <a href="{{ url_for('program_routes.itinerary_detail', code=result.itinerary.itinerary_code) }}" class="text-decoration-none">
                                         <strong>{{ result.itinerary.itinerary_code }}</strong>
                                     </a>
                                     {% if result.itinerary.covers_south %}<i class="fas fa-sun text-warning" title="South Country"></i>{% endif %}
@@ -138,7 +138,7 @@
                                 <td>{{ "%.1f"|format(result.components.altitude_score) }}</td>
                                 <td>{{ "%.1f"|format(result.components.distance_score) }}</td>
                                 <td>
-                                    <a href="{{ url_for('itinerary_detail', code=result.itinerary.itinerary_code) }}" 
+                                    <a href="{{ url_for('program_routes.itinerary_detail', code=result.itinerary.itinerary_code) }}" 
                                        class="btn btn-sm btn-outline-primary">
                                         <i class="fas fa-eye"></i> Details
                                     </a>
@@ -152,7 +152,7 @@
                 <div class="alert alert-info m-3">
                     <h5><i class="fas fa-info-circle"></i> No Itineraries Available</h5>
                     <p>There are currently no itineraries available for the selected trek type. Data for 7-Day and Cavalcade treks is coming soon!</p>
-                    <p>Try selecting a different trek type in your <a href="{{ url_for('preferences') }}" class="alert-link">preferences</a>.</p>
+                    <p>Try selecting a different trek type in your <a href="{{ url_for('base_routes.preferences') }}" class="alert-link">preferences</a>.</p>
                 </div>
                 {% endif %}
             </div>
@@ -199,10 +199,10 @@
 <div class="row">
     <div class="col-12">
         <div class="d-grid gap-2 d-md-flex justify-content-md-end">
-            <a href="{{ url_for('scores') }}" class="btn btn-outline-primary">
+            <a href="{{ url_for('scoring_routes.scores') }}" class="btn btn-outline-primary">
                 <i class="fas fa-arrow-left"></i> Back to Scores
             </a>
-            <a href="{{ url_for('program_chart', method=calculation_method) }}" class="btn btn-outline-info">
+            <a href="{{ url_for('program_routes.program_chart', method=calculation_method) }}" class="btn btn-outline-info">
                 <i class="fas fa-chart-bar"></i> Program Chart
             </a>
             <button class="btn btn-success" onclick="window.print()">

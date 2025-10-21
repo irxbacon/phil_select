@@ -50,10 +50,10 @@
                         <div class="col-md-6">
                             <h6>Navigation:</h6>
                             <div class="btn-group" role="group">
-                                <a href="{{ url_for('preferences') }}" class="btn btn-outline-primary btn-sm">
+                                <a href="{{ url_for('base_routes.preferences') }}" class="btn btn-outline-primary btn-sm">
                                     <i class="fas fa-arrow-left"></i> Back to Preferences
                                 </a>
-                                <a href="{{ url_for('results') }}" class="btn btn-outline-success btn-sm">
+                                <a href="{{ url_for('scoring_routes.results') }}" class="btn btn-outline-success btn-sm">
                                     Results <i class="fas fa-arrow-right"></i>
                                 </a>
                             </div>
@@ -128,7 +128,7 @@
                 <button type="submit" class="btn btn-success btn-lg">
                     <i class="fas fa-save"></i> Save Scores
                 </button>
-                <a href="{{ url_for('results') }}" class="btn btn-primary btn-lg">
+                <a href="{{ url_for('scoring_routes.results') }}" class="btn btn-primary btn-lg">
                     View Results <i class="fas fa-arrow-right"></i>
                 </a>
             </div>

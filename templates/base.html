@@ -49,7 +49,7 @@
     <!-- Navigation -->
     <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
         <div class="container">
-            <a class="navbar-brand" href="{{ url_for('index') }}">
+            <a class="navbar-brand" href="{{ url_for('base_routes.index') }}">
                 <i class="fas fa-mountain"></i> Philmont Trek Selection
             </a>
             <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
@@ -58,32 +58,32 @@
             <div class="collapse navbar-collapse" id="navbarNav">
                 <ul class="navbar-nav me-auto">
                     <li class="nav-item">
-                        <a class="nav-link" href="{{ url_for('index') }}">
+                        <a class="nav-link" href="{{ url_for('base_routes.index') }}">
                             <i class="fas fa-home"></i> Home
                         </a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link" href="{{ url_for('preferences') }}">
+                        <a class="nav-link" href="{{ url_for('base_routes.preferences') }}">
                             <i class="fas fa-cog"></i> Preferences
                         </a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link" href="{{ url_for('scores') }}">
+                        <a class="nav-link" href="{{ url_for('scoring_routes.scores') }}">
                             <i class="fas fa-star"></i> Score Programs
                         </a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link" href="{{ url_for('survey') }}">
+                        <a class="nav-link" href="{{ url_for('survey_routes.survey') }}">
                             <i class="fas fa-clipboard-list"></i> Survey
                         </a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link" href="{{ url_for('results') }}">
+                        <a class="nav-link" href="{{ url_for('scoring_routes.results') }}">
                             <i class="fas fa-trophy"></i> Results
                         </a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link" href="{{ url_for('program_chart') }}">
+                        <a class="nav-link" href="{{ url_for('program_routes.program_chart') }}">
                             <i class="fas fa-chart-bar"></i> Program Chart
                         </a>
                     </li>
