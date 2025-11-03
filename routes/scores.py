@@ -155,7 +155,7 @@ def import_google_sheets():
     try:
         data = request.get_json()
         sheet_url = data.get("sheet_url")
-        sheet_name = data.get("sheet_name", "Sheet1")
+        sheet_name = data.get("sheet_name", "Form Responses 1")
         overwrite = data.get("overwrite", True)
         crew_id = data.get("crew_id")
 
@@ -214,9 +214,9 @@ def import_google_sheets():
                 member_name_to_id[member['name'].strip().lower()] = member['id']
             member_name_to_id[f"member {member['member_number']}"] = member['id']
 
-        # Find program columns (skip first four columns: ID, Name, Age, Skill Level)
+        # Find program columns (skip first five columns: ID, Email, Name, Age, Skill Level)
         program_columns = {}
-        for i, header in enumerate(headers[4:], 4):  # Skip first four columns
+        for i, header in enumerate(headers[5:], 5):  # Skip first five columns
             header_lower = header.strip().lower()
             if header_lower in program_name_to_id:
                 program_columns[i] = program_name_to_id[header_lower]
@@ -232,22 +232,25 @@ def import_google_sheets():
         members_updated = 0
 
         for row in rows[1:]:  # Skip header row
-            if len(row) < 4:  # Need at least ID, Name, Age, and Skill Level columns
+            if len(row) < 5:  # Need at least ID, Email, Name, Age, and Skill Level columns
                 continue
                 
-            # Get member name from second column (index 1)
-            member_name_original = row[1].strip().strip('"')
+            # Get member name from third column (index 2) - email is now at index 1
+            member_name_original = row[2].strip().strip('"')
             member_name = member_name_original.lower()
             
-            # Get age and skill level from columns 2 and 3
+            # Email is at index 1 (ignored but available if needed in future)
+            # email = row[1].strip().strip('"') if len(row) > 1 else ""
+            
+            # Get age and skill level from columns 3 and 4 (shifted due to email column)
             try:
-                age = int(row[2].strip().strip('"')) if row[2].strip().strip('"') else 16
+                age = int(row[3].strip().strip('"')) if row[3].strip().strip('"') else 16
                 age = max(1, min(age, 99))  # Clamp age between 1 and 99
             except (ValueError, IndexError):
                 age = 16  # Default age
             
             try:
-                skill_level = int(row[3].strip().strip('"')) if row[3].strip().strip('"') else 1
+                skill_level = int(row[4].strip().strip('"')) if row[4].strip().strip('"') else 1
                 skill_level = max(1, min(skill_level, 5))  # Clamp skill level between 1 and 5
             except (ValueError, IndexError):
                 skill_level = 1  # Default skill level

@@ -217,10 +217,11 @@
                     <h6><i class="fas fa-info-circle"></i> Setup Instructions:</h6>
                     <ol>
                         <li><strong>Column A:</strong> Any identifier (can be blank)</li>
-                        <li><strong>Column B:</strong> Crew member names (must match your crew roster)</li>
-                        <li><strong>Column C:</strong> Age (will update existing members or set for new ones)</li>
-                        <li><strong>Column D:</strong> Skill Level (1-5, will update existing members or set for new ones)</li>
-                        <li><strong>Columns E+:</strong> Program names as headers (must match system programs)</li>
+                        <li><strong>Column B:</strong> Email address (optional, will be ignored)</li>
+                        <li><strong>Column C:</strong> Crew member names (must match your crew roster)</li>
+                        <li><strong>Column D:</strong> Age (will update existing members or set for new ones)</li>
+                        <li><strong>Column E:</strong> Skill Level (1-5, will update existing members or set for new ones)</li>
+                        <li><strong>Columns F+:</strong> Program names as headers (must match system programs)</li>
                         <li><strong>Data rows:</strong> Each row is a person, each cell is their score (0-20) for that program</li>
                         <li>Make the sheet publicly viewable or shareable with a link</li>
                     </ol>
@@ -241,7 +242,7 @@
                     
                     <div class="mb-3">
                         <label for="sheetName" class="form-label">Sheet Name (Tab)</label>
-                        <input type="text" class="form-control" id="sheetName" value="Sheet1" placeholder="Sheet1">
+                        <input type="text" class="form-control" id="sheetName" value="Form Responses 1" placeholder="Form Responses 1">
                         <div class="form-text">Name of the specific tab/sheet to import from</div>
                     </div>
                     
@@ -281,7 +282,7 @@
 <script>
 async function importFromGoogleSheets() {
     const url = document.getElementById('sheetUrl').value;
-    const sheetName = document.getElementById('sheetName').value || 'Sheet1';
+    const sheetName = document.getElementById('sheetName').value || 'Form Responses 1';
     const overwrite = document.getElementById('overwriteExisting').checked;
     
     if (!url) {
