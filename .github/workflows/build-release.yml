@@ -59,7 +59,7 @@ jobs:
 
     - name: Build with PyInstaller
       run: |
-        pyinstaller --onefile --add-data "templates${{ matrix.path_separator }}templates" --add-data "philmont_selection.db${{ matrix.path_separator }}." --name "${{ matrix.executable_name }}" app.py
+        pyinstaller --onefile --add-data "templates${{ matrix.path_separator }}templates" --add-data "philmont_selection.db${{ matrix.path_separator }}." --add-data "utils${{ matrix.path_separator }}utils" --add-data "routes${{ matrix.path_separator }}routes" --hidden-import "utils.admin" --hidden-import "utils.crew" --hidden-import "utils.scoring" --hidden-import "utils.config" --hidden-import "routes.admin" --hidden-import "routes.api" --hidden-import "routes.base" --hidden-import "routes.scores" --hidden-import "routes.survey" --hidden-import "routes.program" --hidden-import "sqlite3" --hidden-import "requests" --hidden-import "flask" --hidden-import "flask_sqlalchemy" --name "${{ matrix.executable_name }}" app.py
 
     - name: Verify executable (Unix)
       if: runner.os != 'Windows'
