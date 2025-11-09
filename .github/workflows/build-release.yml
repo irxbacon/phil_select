@@ -59,7 +59,7 @@ jobs:
 
     - name: Build with PyInstaller
       run: |
-        pyinstaller --onefile --add-data "templates${{ matrix.path_separator }}templates" --add-data "philmont_selection.db${{ matrix.path_separator }}." --name "${{ matrix.executable_name }}" app.py
+        pyinstaller --onefile --add-data "templates${{ matrix.path_separator }}templates" --add-data "philmont_selection.db${{ matrix.path_separator }}." --name "${{ matrix.executable_name }}" app[...]
 
     - name: Verify executable (Unix)
       if: runner.os != 'Windows'
@@ -82,8 +82,21 @@ jobs:
       if: runner.os == 'Windows'
       run: |
         cd dist
-        # Start the app in background and kill it after a few seconds
-        Start-Process -FilePath ".\${{ matrix.executable_name }}" -PassThru | ForEach-Object { Start-Sleep -Seconds 3; Stop-Process -Id $_.Id -Force } 2>$null || echo "App test completed"
+        # Start the app in background, wait, then attempt to stop it only if it still exists
+        Start-Process -FilePath ".\${{ matrix.executable_name }}" -PassThru | ForEach-Object {
+          $pid = $_.Id
+          Start-Sleep -Seconds 3
+          if (Get-Process -Id $pid -ErrorAction SilentlyContinue) {
+            try {
+              Stop-Process -Id $pid -Force -ErrorAction Stop
+            } catch {
+              Write-Host "Warning: failed to stop process $pid: $_"
+            }
+          } else {
+            Write-Host "Process $pid already exited."
+          }
+        }
+        Write-Host "App test completed"
 
     - name: Upload executable as artifact
       uses: actions/upload-artifact@v4
