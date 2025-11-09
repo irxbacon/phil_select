@@ -83,8 +83,11 @@ jobs:
       run: |
         cd dist
         # Start the app in background and kill it after a few seconds
-        Start-Process -FilePath ".\${{ matrix.executable_name }}" -PassThru | ForEach-Object { Start-Sleep -Seconds 3; Stop-Process -Id $_.Id -Force } 2>$null || echo "App test completed"
-
+        $process = Start-Process -FilePath ".\${{ matrix.executable_name }}" -PassThru
+        Start-Sleep -Seconds 3
+        if (!$process.HasExited) { Stop-Process -Id $process.Id -Force }
+        echo "App test completed"
+        
     - name: Upload executable as artifact
       uses: actions/upload-artifact@v4
       with:
