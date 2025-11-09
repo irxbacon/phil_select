@@ -38,10 +38,8 @@ jobs:
         python -m pip install --upgrade pip
         pip install -r requirements.txt
         pip install pyinstaller
-        # Ensure bcrypt is properly installed with all dependencies
-        pip install --force-reinstall bcrypt
-        # Install CFFI explicitly for Windows bcrypt support
-        pip install cffi
+        # Verify basic Python setup
+        python -c "import sqlite3; print('sqlite3 available')"
 
     - name: Verify database exists
       run: |
@@ -63,7 +61,7 @@ jobs:
 
     - name: Build with PyInstaller
       run: |
-        pyinstaller --onefile --add-data "templates${{ matrix.path_separator }}templates" --add-data "philmont_selection.db${{ matrix.path_separator }}." --add-data "utils${{ matrix.path_separator }}utils" --add-data "routes${{ matrix.path_separator }}routes" --hidden-import "database" --hidden-import "utils.admin" --hidden-import "utils.crew" --hidden-import "utils.scoring" --hidden-import "utils.config" --hidden-import "routes.admin" --hidden-import "routes.api" --hidden-import "routes.base" --hidden-import "routes.scores" --hidden-import "routes.survey" --hidden-import "routes.program" --hidden-import "sqlite3" --collect-all "sqlite3" --hidden-import "bcrypt" --hidden-import "bcrypt._bcrypt" --hidden-import "_cffi_backend" --collect-all "bcrypt" --collect-binaries "bcrypt" --collect-all "cffi" --collect-all "pandas" --collect-all "openpyxl" --hidden-import "json" --hidden-import "re" --hidden-import "functools" --hidden-import "argparse" --hidden-import "threading" --hidden-import "webbrowser" --name "${{ matrix.executable_name }}" app.py
+        pyinstaller --onefile --add-data "templates${{ matrix.path_separator }}templates" --add-data "philmont_selection.db${{ matrix.path_separator }}." --add-data "utils${{ matrix.path_separator }}utils" --add-data "routes${{ matrix.path_separator }}routes" --hidden-import "database" --hidden-import "utils.admin" --hidden-import "utils.crew" --hidden-import "utils.scoring" --hidden-import "utils.config" --hidden-import "routes.admin" --hidden-import "routes.api" --hidden-import "routes.base" --hidden-import "routes.scores" --hidden-import "routes.survey" --hidden-import "routes.program" --hidden-import "sqlite3" --collect-all "sqlite3" --collect-all "pandas" --collect-all "openpyxl" --hidden-import "json" --hidden-import "re" --hidden-import "functools" --hidden-import "argparse" --hidden-import "threading" --hidden-import "webbrowser" --name "${{ matrix.executable_name }}" app.py
 
     - name: Verify executable (Unix)
       if: runner.os != 'Windows'

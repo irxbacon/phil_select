@@ -4,7 +4,9 @@ import sqlite3
 
 from functools import wraps
 
-import bcrypt
+# Import bcrypt only when needed to avoid PyInstaller issues
+# import bcrypt  # Moved to function-level imports
+
 from flask import (
     flash,
     redirect,
@@ -54,6 +56,13 @@ def admin_required(f):
 
 def authenticate_user(username, password):
     """Authenticate user credentials and return user info"""
+    try:
+        import bcrypt
+    except ImportError:
+        # If bcrypt is not available, authentication will fail
+        print("Warning: bcrypt not available - authentication disabled")
+        return None
+        
     conn = get_db_connection()
     user = conn.execute(
         """
@@ -71,6 +80,13 @@ def authenticate_user(username, password):
 
 def create_user(username, password, crew_id=None, is_admin=False):
     """Create a new user with hashed password"""
+    try:
+        import bcrypt
+    except ImportError:
+        # If bcrypt is not available, user creation will fail
+        print("Warning: bcrypt not available - user creation disabled")
+        return None
+        
     password_hash = bcrypt.hashpw(password.encode("utf-8"), bcrypt.gensalt())
 
     conn = get_db_connection()
