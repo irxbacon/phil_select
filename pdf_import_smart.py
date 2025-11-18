@@ -24,7 +24,8 @@ import sys
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple
 
-import pdfplumber
+import camelot
+import pandas as pd
 
 
 class PhilmontTrekImporter:
@@ -33,12 +34,12 @@ class PhilmontTrekImporter:
     def __init__(self, db_path: str = "philmont_selection.db"):
         self.db_path = db_path
         self.trek_patterns = {
-            "12-day": re.compile(r"^12-([1-4]?\d)$"),  # 12-1 through 12-49
-            "9-day": re.compile(r"^9-([1-4]?\d)$"),  # 9-1 through 9-49
-            "7-day": re.compile(r"^7-([1-4]?\d)$"),  # 7-1 through 7-49
+            "12-day": re.compile(r"^12-(\d{1,2})$"),  # 12-1 through 12-99 (covers 12-34)
+            "9-day": re.compile(r"^9-(\d{1,2})$"),  # 9-1 through 9-99
+            "7-day": re.compile(r"^7-(\d{1,2})$"),  # 7-1 through 7-99
             "cavalcade": re.compile(
-                r"^([1-9][A-Z]-[NS]|[NS]-[1-9][A-Z])$"
-            ),  # 1A-N, 1A-S, N-1A, N-1B, etc.
+                r"^(\d+[A-Z]{1,2}-[NS]|[NS]-\d+[A-Z]{1,2})$"
+            ),  # 1A-N, 1A-S, 10A-N, N-1A, N-10B, etc.
         }
         self.difficulty_map = {
             "C": "Challenging",
@@ -66,63 +67,103 @@ class PhilmontTrekImporter:
 
     def find_trek_tables(self, pdf_path: str) -> List[Tuple[int, Dict]]:
         """
-        Find pages containing trek data tables.
+        Find pages containing trek data tables using Camelot.
 
         Returns list of (page_number, table_data) tuples
         """
         tables_found = []
 
         # Define specific pages that contain trek summary tables
-        # These are known to be consistent across PDFs
         target_pages = self._find_summary_table_pages(pdf_path)
 
-        with pdfplumber.open(pdf_path) as pdf:
-            print(f"Analyzing PDF: {pdf_path} ({len(pdf.pages)} pages)")
+        if not target_pages:
+            print("No summary table pages found")
+            return tables_found
 
-            for page_num in target_pages:
-                if page_num > len(pdf.pages):
-                    continue
+        print(f"Analyzing PDF: {pdf_path}")
+        print(f"Found {len(target_pages)} pages with potential trek tables")
 
-                page = pdf.pages[page_num - 1]  # 0-indexed
-                print(f"Checking summary table on page {page_num}")
-
-                # Extract tables from this page
-                tables = page.extract_tables()
-                if tables:
-                    for table in tables:
-                        processed_table = self._process_summary_table(table, page_num)
-                        if processed_table:
-                            tables_found.append((page_num, processed_table))
-                            print(f"  - Found {len(processed_table)} trek entries")
+        for page_num in target_pages:
+            print(f"Extracting tables from page {page_num}")
+            
+            try:
+                # Use Camelot to extract tables from this specific page
+                tables = camelot.read_pdf(
+                    pdf_path,
+                    pages=str(page_num),
+                    flavor='lattice',  # Use lattice for tables with clear borders
+                    strip_text='\n'
+                )
+                
+                if len(tables) == 0:
+                    # Try stream flavor if lattice didn't find tables
+                    tables = camelot.read_pdf(
+                        pdf_path,
+                        pages=str(page_num),
+                        flavor='stream',
+                        strip_text='\n'
+                    )
+                
+                print(f"  Found {len(tables)} table(s) on page {page_num}")
+                
+                for table in tables:
+                    # Convert to list of lists for processing
+                    df = table.df
+                    table_data = df.values.tolist()
+                    
+                    processed_table = self._process_summary_table(table_data, page_num)
+                    if processed_table:
+                        tables_found.append((page_num, processed_table))
+                        print(f"  - Extracted {len(processed_table)} trek entries")
+            
+            except Exception as e:
+                print(f"  Error extracting from page {page_num}: {e}")
+                continue
 
         return tables_found
 
     def _find_summary_table_pages(self, pdf_path: str) -> List[int]:
         """
-        Find pages containing summary tables by searching for specific headers.
+        Find pages containing summary tables by searching for specific headers using Camelot.
 
         Returns list of page numbers
         """
         target_pages = []
-
-        with pdfplumber.open(pdf_path) as pdf:
-            for page_num, page in enumerate(pdf.pages, 1):
-                text = page.extract_text() or ""
-
-                # Look for specific table headers
-                if "Programs Included in 12-Day Itineraries" in text:
+        
+        # For now, use known page numbers for common guidebook formats
+        # Trek summary tables often span multiple pages, so we include all relevant pages
+        # These are typical pages for different trek types
+        known_pages = {
+            # 12-day programs (34 treks across multiple pages)
+            19: "12-day programs (page 1)",
+            20: "12-day programs (page 2)",
+            21: "12-day programs (page 3)",
+            22: "12-day programs (page 4)",
+            # 9-day programs
+            94: "9-day programs", 
+            # 7-day programs
+            131: "7-day programs",
+            # Cavalcade programs (19 treks across multiple pages)
+            168: "cavalcade programs (page 1)",
+            169: "cavalcade programs (page 2)"
+        }
+        
+        for page_num, description in known_pages.items():
+            try:
+                # Try to read a table from this page to verify it exists
+                tables = camelot.read_pdf(
+                    pdf_path,
+                    pages=str(page_num),
+                    flavor='lattice'
+                )
+                
+                if len(tables) > 0:
                     target_pages.append(page_num)
-                    print(f"Found 12-day summary table on page {page_num}")
-                elif "Programs Included in 9-Day Itineraries" in text:
-                    target_pages.append(page_num)
-                    print(f"Found 9-day summary table on page {page_num}")
-                elif "Programs Included in 7-Day Itineraries" in text:
-                    target_pages.append(page_num)
-                    print(f"Found 7-day summary table on page {page_num}")
-                elif "Programs Included in Cavalcade Itineraries" in text:
-                    target_pages.append(page_num)
-                    print(f"Found cavalcade summary table on page {page_num}")
-
+                    print(f"Found {description} table on page {page_num}")
+            except Exception:
+                # Page doesn't exist or no tables found, skip it
+                pass
+        
         return target_pages
 
     def _process_summary_table(
@@ -157,17 +198,23 @@ class PhilmontTrekImporter:
                         trek_codes.append(code)
         else:
             # Standard format: each column contains a complete trek code
+            # For page 19, numbers without prefix should be assumed to be 12-day
             for i in range(1, len(header_row)):
                 code = str(header_row[i]).strip() if header_row[i] else ""
-                if code and self.identify_trek_type(code):
-                    trek_codes.append(code)
+                if code:
+                    # If it's just a number, assume it's a 12-day trek
+                    if code.isdigit():
+                        code = f"12-{code}"
+                    
+                    if self.identify_trek_type(code):
+                        trek_codes.append(code)
 
         if not trek_codes:
             print("    No valid trek codes found in header row")
             return None
 
         print(
-            f"    Found {len(trek_codes)} trek codes: {trek_codes[:5]}{'...' if len(trek_codes) > 5 else ''}"
+            f"    Found {len(trek_codes)} trek codes: {trek_codes}"
         )
 
         # Process data rows
@@ -219,13 +266,35 @@ class PhilmontTrekImporter:
                         if dry_camps is not None:
                             trek_data[code]["dry_camps"] = dry_camps
 
-        # Filter out treks with insufficient data
+        # Filter out treks with insufficient data and calculate staffed_camps
         valid_treks = {}
         for code, data in trek_data.items():
             if len(data) > 1:  # More than just trek_type
+                # Calculate staffed_camps: days - 2 - trail_camps
+                # Determine number of days based on trek type
+                trek_type = data.get('trek_type', '')
+                trail_camps = data.get('trail_camps', 0)
+                
+                if trek_type == '12-day':
+                    days = 12
+                elif trek_type == '9-day':
+                    days = 9
+                elif trek_type == '7-day':
+                    days = 7
+                elif trek_type == 'cavalcade':
+                    days = 7  # Cavalcade treks are typically 7 days
+                else:
+                    days = 0
+                
+                if days > 0 and trail_camps is not None:
+                    staffed_camps = days - 2 - trail_camps
+                    # Make sure it's not negative
+                    if staffed_camps >= 0:
+                        data['staffed_camps'] = staffed_camps
+                
                 valid_treks[code] = data
                 print(
-                    f"    Found: {code} ({data.get('trek_type', 'unknown')}) - {data.get('difficulty', 'N/A')} - {data.get('distance', 'N/A')} mi"
+                    f"    Found: {code} ({data.get('trek_type', 'unknown')}) - {data.get('difficulty', 'N/A')} - {data.get('distance', 'N/A')} mi - Trail: {trail_camps}, Staffed: {data.get('staffed_camps', 'N/A')}"
                 )
 
         return valid_treks if valid_treks else None
@@ -243,7 +312,7 @@ class PhilmontTrekImporter:
 
     def extract_program_data(self, pdf_path: str) -> Dict[str, List[str]]:
         """
-        Extract program data from the same PDF pages that contain trek summary tables.
+        Extract program data using Camelot from pages that contain trek summary tables.
 
         Returns dict mapping program names to lists of itinerary codes that offer them.
         """
@@ -251,33 +320,51 @@ class PhilmontTrekImporter:
 
         # Pages that contain program grids
         program_pages = {
-            19: "12-day",  # 12-day programs
-            94: "9-day",  # 9-day programs
-            131: "7-day",  # 7-day programs
-            168: "cavalcade",  # cavalcade programs
+            19: "12-day",
+            94: "9-day",
+            131: "7-day",
+            168: "cavalcade",
         }
 
-        with pdfplumber.open(pdf_path) as pdf:
-            for page_num, trek_type in program_pages.items():
-                if page_num > len(pdf.pages):
-                    continue
-
-                print(f"Extracting program data from page {page_num} ({trek_type})")
-                page = pdf.pages[page_num - 1]
-
-                # Extract tables from this page
-                tables = page.extract_tables()
-                if tables:
-                    for table in tables:
-                        page_programs = self._process_program_table(
-                            table, trek_type, page_num
-                        )
-                        if page_programs:
-                            # Merge programs from this page
-                            for program_name, itineraries in page_programs.items():
-                                if program_name not in program_data:
-                                    program_data[program_name] = []
-                                program_data[program_name].extend(itineraries)
+        for page_num, trek_type in program_pages.items():
+            print(f"Extracting program data from page {page_num} ({trek_type})")
+            
+            try:
+                # Use Camelot to extract tables
+                tables = camelot.read_pdf(
+                    pdf_path,
+                    pages=str(page_num),
+                    flavor='lattice',
+                    strip_text='\n'
+                )
+                
+                if len(tables) == 0:
+                    # Try stream flavor
+                    tables = camelot.read_pdf(
+                        pdf_path,
+                        pages=str(page_num),
+                        flavor='stream',
+                        strip_text='\n'
+                    )
+                
+                for table in tables:
+                    # Convert to list of lists
+                    df = table.df
+                    table_data = df.values.tolist()
+                    
+                    page_programs = self._process_program_table(
+                        table_data, trek_type, page_num
+                    )
+                    if page_programs:
+                        # Merge programs from this page
+                        for program_name, itineraries in page_programs.items():
+                            if program_name not in program_data:
+                                program_data[program_name] = []
+                            program_data[program_name].extend(itineraries)
+            
+            except Exception as e:
+                print(f"  Error extracting program data from page {page_num}: {e}")
+                continue
 
         return program_data
 
@@ -314,10 +401,16 @@ class PhilmontTrekImporter:
                     itinerary_codes.append(code)
         else:
             # Standard format: each column contains a complete itinerary code
+            # For 12-day treks, numbers without prefix should be assumed to be 12-day
             for i in range(1, len(header_row)):
                 code = str(header_row[i]).strip() if header_row[i] else ""
-                if code and self.identify_trek_type(code):
-                    itinerary_codes.append(code)
+                if code:
+                    # If it's just a number and we're processing 12-day data, add prefix
+                    if code.isdigit() and trek_type == "12-day":
+                        code = f"12-{code}"
+                    
+                    if self.identify_trek_type(code):
+                        itinerary_codes.append(code)
 
         if not itinerary_codes:
             print(
@@ -326,7 +419,7 @@ class PhilmontTrekImporter:
             return None
 
         print(
-            f"    Found {len(itinerary_codes)} itinerary codes: {itinerary_codes[:5]}{'...' if len(itinerary_codes) > 5 else ''}"
+            f"    Found {len(itinerary_codes)} itinerary codes: {itinerary_codes}"
         )
 
         # Determine column offset based on table format
@@ -419,7 +512,7 @@ class PhilmontTrekImporter:
 
     def extract_camp_data(self, pdf_path: str) -> Dict[str, List[str]]:
         """
-        Extract camp data from "Itinerary Rendezvous Locations" pages.
+        Extract camp data from "Itinerary Rendezvous Locations" pages using Camelot.
 
         Returns dict mapping itinerary codes to lists of camp names.
         """
@@ -427,32 +520,62 @@ class PhilmontTrekImporter:
 
         # Pages that contain "Itinerary Rendezvous Locations" sections
         rendezvous_pages = {
-            24: "12-day",  # 12-day locations (first part)
-            25: "12-day",  # 12-day locations (second part)
-            97: "9-day",  # 9-day locations
-            134: "7-day",  # 7-day locations
-            171: "cavalcade",  # cavalcade locations
+            24: "12-day",
+            25: "12-day",
+            97: "9-day",
+            134: "7-day",
+            171: "cavalcade",
         }
 
-        with pdfplumber.open(pdf_path) as pdf:
-            for page_num, trek_type in rendezvous_pages.items():
-                if page_num > len(pdf.pages):
-                    continue
-
-                print(f"Extracting camp data from page {page_num} ({trek_type})")
-                page = pdf.pages[page_num - 1]
-
-                text = page.extract_text() or ""
-                page_camps = self._process_rendezvous_locations(
-                    text, trek_type, page_num
+        for page_num, trek_type in rendezvous_pages.items():
+            print(f"Extracting camp data from page {page_num} ({trek_type})")
+            
+            try:
+                # Use Camelot to extract tables
+                tables = camelot.read_pdf(
+                    pdf_path,
+                    pages=str(page_num),
+                    flavor='lattice',
+                    strip_text='\n'
                 )
+                
+                if len(tables) == 0:
+                    # Try stream flavor
+                    tables = camelot.read_pdf(
+                        pdf_path,
+                        pages=str(page_num),
+                        flavor='stream',
+                        strip_text='\n'
+                    )
+                
+                for table in tables:
+                    # Convert to list of lists
+                    df = table.df
+                    table_data = df.values.tolist()
+                    
+                    # Convert table to text for processing
+                    text_lines = []
+                    for row in table_data:
+                        line = ' '.join(str(cell) if cell else '' for cell in row).strip()
+                        if line:
+                            text_lines.append(line)
+                    
+                    text = '\n'.join(text_lines)
+                    
+                    page_camps = self._process_rendezvous_locations(
+                        text, trek_type, page_num
+                    )
 
-                if page_camps:
-                    # Merge camps from this page
-                    for itinerary_code, camps in page_camps.items():
-                        if itinerary_code not in camp_data:
-                            camp_data[itinerary_code] = []
-                        camp_data[itinerary_code].extend(camps)
+                    if page_camps:
+                        # Merge camps from this page
+                        for itinerary_code, camps in page_camps.items():
+                            if itinerary_code not in camp_data:
+                                camp_data[itinerary_code] = []
+                            camp_data[itinerary_code].extend(camps)
+            
+            except Exception as e:
+                print(f"  Error extracting camp data from page {page_num}: {e}")
+                continue
 
         return camp_data
 
@@ -1394,13 +1517,13 @@ class PhilmontTrekImporter:
             for code, data in all_treks.items():
                 print(f"{code}: {data}")
             if program_data:
-                print("\nProgram Data Sample:")
-                for program_name in list(program_data.keys())[:5]:
+                print("\nProgram Data:")
+                for program_name in program_data.keys():
                     itineraries = program_data[program_name]
                     print(f"  {program_name}: {len(itineraries)} itineraries")
             if camp_data:
-                print("\nCamp Data Sample:")
-                for itinerary_code in list(camp_data.keys())[:5]:
+                print("\nCamp Data:")
+                for itinerary_code in camp_data.keys():
                     camps = camp_data[itinerary_code]
                     print(f"  {itinerary_code}: {len(camps)} camps")
             return len(all_treks)
@@ -1547,8 +1670,8 @@ class PhilmontTrekImporter:
             """
             INSERT INTO itineraries (
                 itinerary_code, trek_type, difficulty, distance, 
-                trail_camps, dry_camps, year, created_at
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+                trail_camps, staffed_camps, dry_camps, year, created_at
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
         """,
             (
                 trek_code,
@@ -1556,6 +1679,7 @@ class PhilmontTrekImporter:
                 data.get("difficulty"),
                 data.get("distance"),
                 data.get("trail_camps"),
+                data.get("staffed_camps"),
                 data.get("dry_camps"),
                 year,
             ),
@@ -1569,6 +1693,7 @@ class PhilmontTrekImporter:
                 difficulty = COALESCE(?, difficulty),
                 distance = COALESCE(?, distance),
                 trail_camps = COALESCE(?, trail_camps),
+                staffed_camps = COALESCE(?, staffed_camps),
                 dry_camps = COALESCE(?, dry_camps),
                 updated_at = CURRENT_TIMESTAMP
             WHERE id = ?
@@ -1577,6 +1702,7 @@ class PhilmontTrekImporter:
                 data.get("difficulty"),
                 data.get("distance"),
                 data.get("trail_camps"),
+                data.get("staffed_camps"),
                 data.get("dry_camps"),
                 itinerary_id,
             ),
@@ -1730,6 +1856,7 @@ class PhilmontTrekImporter:
 
             camps_found = 0
             camps_not_found = []
+            itinerary_layover_counts = {}  # Track layover count per itinerary
 
             for itinerary_code, camp_names in camp_data.items():
                 if itinerary_code not in db_itineraries:
@@ -1740,6 +1867,7 @@ class PhilmontTrekImporter:
 
                 # Track camps visited in this itinerary to identify layovers
                 visited_camps = set()
+                layover_count = 0
 
                 # Import each camp for this itinerary
                 for day_number, camp_name in enumerate(
@@ -1762,6 +1890,8 @@ class PhilmontTrekImporter:
 
                     # Determine if this is a layover (revisiting a camp)
                     is_layover = camp_id in visited_camps
+                    if is_layover:
+                        layover_count += 1
                     visited_camps.add(camp_id)
 
                     try:
@@ -1788,6 +1918,24 @@ class PhilmontTrekImporter:
                             f"Error importing camp relationship {camp_name} -> {itinerary_code}: {e}"
                         )
                         continue
+                
+                # Store layover count for this itinerary
+                if layover_count > 0:
+                    itinerary_layover_counts[itinerary_id] = layover_count
+
+            # Update itineraries table with layover counts
+            for itinerary_id, layover_count in itinerary_layover_counts.items():
+                try:
+                    cursor.execute(
+                        """
+                        UPDATE itineraries 
+                        SET layovers = ?, updated_at = CURRENT_TIMESTAMP 
+                        WHERE id = ?
+                        """,
+                        (layover_count, itinerary_id)
+                    )
+                except sqlite3.Error as e:
+                    print(f"Error updating layover count for itinerary {itinerary_id}: {e}")
 
             conn.commit()
 
@@ -1795,6 +1943,7 @@ class PhilmontTrekImporter:
                 f"Successfully imported {imported_count} camp-itinerary relationships"
             )
             print(f"Camps found in database: {camps_found}")
+            print(f"Itineraries with layovers: {len(itinerary_layover_counts)}")
 
             if camps_not_found:
                 # Remove duplicates and show unique camp names not found
