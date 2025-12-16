@@ -145,7 +145,7 @@ CREATE TABLE crews (
 CREATE TABLE users (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     username VARCHAR(100) UNIQUE NOT NULL,
-    password_hash VARCHAR(255) NOT NULL, -- Store bcrypt/scrypt hash
+    password_hash VARCHAR(255) NOT NULL, -- Store password (simplified for this system)
     crew_id INTEGER, -- NULL for admin users
     is_admin BOOLEAN DEFAULT FALSE,
     is_active BOOLEAN DEFAULT TRUE,

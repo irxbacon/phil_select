@@ -36,7 +36,8 @@
                 </div>
                 <div class="card-body">
                     <div class="row">
-                        <div class="col-md-6">
+                        <div class="col-md-4">
+                        <div class="col-md-4">
                             <h6>Bulk Actions:</h6>
                             <div class="btn-group" role="group">
                                 <button type="button" class="btn btn-outline-secondary btn-sm" onclick="fillRandomScores()">
@@ -46,6 +47,18 @@
                                     <i class="fas fa-eraser"></i> Clear All
                                 </button>
                             </div>
+                        </div>
+                        <div class="col-md-4">
+                            <h6>Import from Google Sheets:</h6>
+                            <button type="button" class="btn btn-outline-info btn-sm" data-bs-toggle="modal" data-bs-target="#googleSheetsModal">
+                                <i class="fab fa-google"></i> Import Scores
+                            </button>
+                        </div>
+                        <div class="col-md-4">
+                            <h6>Import from Google Sheets:</h6>
+                            <button type="button" class="btn btn-outline-info btn-sm" data-bs-toggle="modal" data-bs-target="#googleSheetsModal">
+                                <i class="fab fa-google"></i> Import Scores
+                            </button>
                         </div>
                         <div class="col-md-6">
                             <h6>Navigation:</h6>
@@ -196,5 +209,180 @@
             document.querySelector('form').submit();
         }
     });
+</script>
+
+<!-- Google Sheets Import Modal -->
+<div class="modal fade" id="googleSheetsModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title"><i class="fab fa-google"></i> Import Scores from Google Sheets</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="alert alert-info">
+                    <h6><i class="fas fa-info-circle"></i> Setup Instructions:</h6>
+                    <ol>
+                        <li><strong>Column A:</strong> Any identifier (can be blank)</li>
+                        <li><strong>Column B:</strong> Email address (optional, will be ignored)</li>
+                        <li><strong>Column C:</strong> Crew member names (must match your crew roster)</li>
+                        <li><strong>Column D:</strong> Age (will update existing members or set for new ones)</li>
+                        <li><strong>Column E:</strong> Skill Level (1-5, will update existing members or set for new ones)</li>
+                        <li><strong>Columns F+:</strong> Program names as headers (must match system programs)</li>
+                        <li><strong>Data rows:</strong> Each row is a person, each cell is their score (0-20) for that program</li>
+                        <li>Make the sheet publicly viewable or shareable with a link</li>
+                    </ol>
+                    <p class="mb-0">
+                        <strong>Need detailed formatting help?</strong> 
+                        <a href="https://github.com/bcox-ctv/phil_select/blob/import2024/GOOGLE_SHEETS_IMPORT.md" target="_blank">
+                            View complete formatting guide <i class="fas fa-external-link-alt"></i>
+                        </a>
+                    </p>
+                </div>
+                
+                <form id="googleSheetsForm">
+                    <div class="mb-3">
+                        <label for="sheetUrl" class="form-label">Google Sheets URL</label>
+                        <input type="url" class="form-control" id="sheetUrl" placeholder="https://docs.google.com/spreadsheets/d/...">
+                        <div class="form-text">Paste the shareable link to your Google Sheet</div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="sheetName" class="form-label">Sheet Name (Tab)</label>
+                        <input type="text" class="form-control" id="sheetName" value="Form Responses 1" placeholder="Form Responses 1">
+                        <div class="form-text">Name of the specific tab/sheet to import from</div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" id="overwriteExisting" checked>
+                            <label class="form-check-label" for="overwriteExisting">
+                                Overwrite existing scores
+                            </label>
+                        </div>
+                    </div>
+                </form>
+                
+                <div id="importProgress" style="display: none;">
+                    <div class="d-flex align-items-center">
+                        <div class="spinner-border spinner-border-sm me-2" role="status"></div>
+                        <span>Importing scores...</span>
+                    </div>
+                </div>
+                
+                <div id="importResults" style="display: none;">
+                    <div class="alert" role="alert">
+                        <div id="importMessage"></div>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary" onclick="importFromGoogleSheets()">
+                    <i class="fas fa-download"></i> Import Scores
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+async function importFromGoogleSheets() {
+    const url = document.getElementById('sheetUrl').value;
+    const sheetName = document.getElementById('sheetName').value || 'Form Responses 1';
+    const overwrite = document.getElementById('overwriteExisting').checked;
+    
+    if (!url) {
+        alert('Please enter a Google Sheets URL');
+        return;
+    }
+    
+    // Show progress
+    document.getElementById('importProgress').style.display = 'block';
+    document.getElementById('importResults').style.display = 'none';
+    
+    try {
+        const response = await fetch('/import-google-sheets', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                sheet_url: url,
+                sheet_name: sheetName,
+                overwrite: overwrite,
+                crew_id: {{ selected_crew_id }}
+            })
+        });
+        
+        const result = await response.json();
+        
+        // Hide progress
+        document.getElementById('importProgress').style.display = 'none';
+        
+        if (result.success) {
+            // Show success message
+            let successMessage = `
+                <strong>Import Successful!</strong><br>
+                Imported ${result.scores_imported} scores for ${result.members_processed} members.
+            `;
+            if (result.new_members_added && result.new_members_added > 0) {
+                successMessage += `<br><em>Added ${result.new_members_added} new crew member(s) to the database.</em>`;
+            }
+            if (result.members_updated && result.members_updated > 0) {
+                successMessage += `<br><em>Updated age/skill level for ${result.members_updated} existing member(s).</em>`;
+            }
+            document.getElementById('importMessage').innerHTML = successMessage;
+            document.getElementById('importResults').className = 'alert alert-success';
+            document.getElementById('importResults').style.display = 'block';
+            
+            // Populate the form with imported scores
+            if (result.scores) {
+                populateScoresFromImport(result.scores);
+            }
+            
+            // Auto-close modal after 3 seconds
+            setTimeout(() => {
+                bootstrap.Modal.getInstance(document.getElementById('googleSheetsModal')).hide();
+            }, 3000);
+            
+        } else {
+            // Show error message
+            document.getElementById('importMessage').innerHTML = `
+                <strong>Import Failed:</strong><br>
+                ${result.error}
+            `;
+            document.getElementById('importResults').className = 'alert alert-danger';
+            document.getElementById('importResults').style.display = 'block';
+        }
+        
+    } catch (error) {
+        // Hide progress
+        document.getElementById('importProgress').style.display = 'none';
+        
+        // Show error message
+        document.getElementById('importMessage').innerHTML = `
+            <strong>Error:</strong><br>
+            ${error.message}
+        `;
+        document.getElementById('importResults').className = 'alert alert-danger';
+        document.getElementById('importResults').style.display = 'block';
+    }
+}
+
+function populateScoresFromImport(scores) {
+    // Populate form fields with imported scores
+    Object.entries(scores).forEach(([key, value]) => {
+        const input = document.querySelector(`input[name="score_${key}"]`);
+        if (input && (document.getElementById('overwriteExisting').checked || !input.value)) {
+            input.value = value;
+        }
+    });
+    
+    // Recalculate totals for all programs
+    {% for program in programs %}
+    calculateTotals({{ program.id }});
+    {% endfor %}
+}
 </script>
 {% endblock %}
