@@ -343,6 +343,14 @@ class ElevationDataParser:
 
     def update_database(self, elevation_data: Dict[str, Dict], year: int, dry_run: bool = False):
         """Update the database with parsed elevation data"""
+        # Whitelist of allowed column names to prevent SQL injection
+        ALLOWED_COLUMNS = {
+            'min_altitude',
+            'max_altitude',
+            'avg_daily_elevation_change',
+            'total_elevation_gain'
+        }
+        
         conn = self.connect_db()
         cursor = conn.cursor()
         
@@ -363,24 +371,14 @@ class ElevationDataParser:
                 continue
             
             # Build UPDATE query dynamically based on available data
+            # Only include columns that are in the whitelist
             update_fields = []
             values = []
             
-            if 'min_altitude' in data:
-                update_fields.append("min_altitude = ?")
-                values.append(data['min_altitude'])
-            
-            if 'max_altitude' in data:
-                update_fields.append("max_altitude = ?")
-                values.append(data['max_altitude'])
-            
-            if 'avg_daily_elevation_change' in data:
-                update_fields.append("avg_daily_elevation_change = ?")
-                values.append(data['avg_daily_elevation_change'])
-            
-            if 'total_elevation_gain' in data:
-                update_fields.append("total_elevation_gain = ?")
-                values.append(data['total_elevation_gain'])
+            for field_name in ['min_altitude', 'max_altitude', 'avg_daily_elevation_change', 'total_elevation_gain']:
+                if field_name in data and field_name in ALLOWED_COLUMNS:
+                    update_fields.append(f"{field_name} = ?")
+                    values.append(data[field_name])
             
             if not update_fields:
                 continue
@@ -388,6 +386,7 @@ class ElevationDataParser:
             update_fields.append("updated_at = CURRENT_TIMESTAMP")
             values.extend([trek_code, year])
             
+            # Safe to use string formatting here because field names are validated against whitelist
             query = f"""
                 UPDATE itineraries 
                 SET {', '.join(update_fields)}
