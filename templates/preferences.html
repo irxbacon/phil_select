@@ -41,7 +41,7 @@
                                     {% endif %}
                                 </span>
                                 <button type="button" class="btn btn-sm btn-outline-danger" 
-                                        onclick="deleteMember({{ member.id }}, '{{ member.name or ('Crewmember ' + member.member_number|string) }}')"
+                                        onclick="deleteMember({{ member.id }}, '{{ (member.name or ('Crewmember ' + member.member_number|string))|replace("'", "\\'") }}')"
                                         title="Delete this crew member">
                                     <i class="fas fa-trash"></i>
                                 </button>
