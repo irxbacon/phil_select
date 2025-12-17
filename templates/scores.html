@@ -98,8 +98,8 @@
                     <tr>
                         <td>
                             <strong>{{ program.name }}</strong>
-                            {% if program.old_name_comments %}
-                                <br><small class="text-muted">{{ program.old_name_comments }}</small>
+                            {% if program.description %}
+                                <br><small class="text-muted">{{ program.description }}</small>
                             {% endif %}
                         </td>
                         {% for member in crew_members %}
