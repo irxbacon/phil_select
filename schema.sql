@@ -14,6 +14,7 @@ CREATE TABLE programs (
     code VARCHAR(10) UNIQUE,
     name VARCHAR(255) NOT NULL,
     category VARCHAR(100),
+    description TEXT,
     old_name_comments TEXT,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
