@@ -309,23 +309,40 @@ class PhilmontScorer:
     def _calculate_difficulty_score(self, itinerary, crew_prefs):
         """Calculate difficulty-based score"""
         difficulty = itinerary["difficulty"]
+        
+        # Normalize difficulty to handle both full names and abbreviations
+        if difficulty:
+            difficulty_lower = difficulty.lower()
+            if "challenging" in difficulty_lower:
+                difficulty_abbrev = "C"
+            elif "super strenuous" in difficulty_lower:
+                difficulty_abbrev = "SS"
+            elif "strenuous" in difficulty_lower:
+                difficulty_abbrev = "S"
+            elif "rugged" in difficulty_lower:
+                difficulty_abbrev = "R"
+            else:
+                # Already abbreviated or unknown
+                difficulty_abbrev = difficulty
+        else:
+            return 0
 
         # Check if crew accepts this difficulty level
         difficulty_accepted = False
-        if difficulty == "C" and crew_prefs.get("difficulty_challenging", True):
+        if difficulty_abbrev == "C" and crew_prefs.get("difficulty_challenging", True):
             difficulty_accepted = True
-        elif difficulty == "R" and crew_prefs.get("difficulty_rugged", True):
+        elif difficulty_abbrev == "R" and crew_prefs.get("difficulty_rugged", True):
             difficulty_accepted = True
-        elif difficulty == "S" and crew_prefs.get("difficulty_strenuous", True):
+        elif difficulty_abbrev == "S" and crew_prefs.get("difficulty_strenuous", True):
             difficulty_accepted = True
-        elif difficulty == "SS" and crew_prefs.get("difficulty_super_strenuous", True):
+        elif difficulty_abbrev == "SS" and crew_prefs.get("difficulty_super_strenuous", True):
             difficulty_accepted = True
 
         if not difficulty_accepted:
             return 0
 
         # Apply skill level vs difficulty factor (replicates Excel setItineraryDifficultyFactor)
-        difficulty_factor = self.set_itinerary_difficulty_factor(difficulty)
+        difficulty_factor = self.set_itinerary_difficulty_factor(difficulty_abbrev)
 
         # Apply additional multipliers from database
         difficulty_delta = self.get_score_factor("difficultDelta")

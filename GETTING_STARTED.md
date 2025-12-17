@@ -59,7 +59,7 @@ The application comes with a pre-configured database and sample data, so you can
 1. **Navigate to "Preferences"** from the main menu
 2. **Configure your crew's preferences:**
 
-   **Area Preferences (Optional):**
+   **Regional Preferences (Optional):**
    - Check "Area preferences are important" if you want regional scoring
    - Rank areas 1-4 (1 = most preferred): South, Central, North, Valle Vidal
 

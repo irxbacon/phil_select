@@ -128,7 +128,6 @@ def results():
     else:
         # Regular users only see their assigned crew
         crews = conn.execute("SELECT * FROM crews WHERE id = ?", (crew_id,)).fetchall()
-        crews = conn.execute("SELECT * FROM crews WHERE id = ?", (crew_id,)).fetchall()
 
     conn.close()
 

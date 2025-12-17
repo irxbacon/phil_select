@@ -41,6 +41,44 @@ def format_arrival_date(date_str):
     return date_str
 
 
+# Add custom Jinja2 filter for difficulty CSS class
+@app.template_filter("difficulty_class")
+def difficulty_class(difficulty):
+    """Convert difficulty to CSS class name"""
+    if not difficulty:
+        return "secondary"
+    difficulty_lower = difficulty.lower()
+    if "challenging" in difficulty_lower:
+        return "C"
+    elif "rugged" in difficulty_lower:
+        return "R"
+    elif "super strenuous" in difficulty_lower:
+        return "SS"
+    elif "strenuous" in difficulty_lower:
+        return "S"
+    else:
+        return "secondary"
+
+
+# Add custom Jinja2 filter for difficulty abbreviation
+@app.template_filter("difficulty_abbrev")
+def difficulty_abbrev(difficulty):
+    """Convert difficulty to abbreviated form"""
+    if not difficulty:
+        return difficulty
+    difficulty_lower = difficulty.lower()
+    if "challenging" in difficulty_lower:
+        return "C"
+    elif "rugged" in difficulty_lower:
+        return "R"
+    elif "super strenuous" in difficulty_lower:
+        return "SS"
+    elif "strenuous" in difficulty_lower:
+        return "S"
+    else:
+        return difficulty
+
+
 @app.context_processor
 def inject_admin_status():
     """Inject admin status and user info into all templates"""
