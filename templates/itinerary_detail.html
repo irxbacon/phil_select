@@ -17,7 +17,7 @@
             <div>
                 <h2><i class="fas fa-route"></i> Itinerary {{ itinerary.itinerary_code }}</h2>
                 <p class="lead mb-0">
-                    <span class="badge difficulty-{{ itinerary.difficulty|difficulty_class }} me-2">{{ itinerary.difficulty }}</span>
+                    <span class="badge difficulty-{{ itinerary.difficulty|difficulty_class }} me-2">{{ itinerary.difficulty|difficulty_abbrev }}</span>
                     {{ itinerary.distance or 'N/A' }} miles
                     {% if itinerary.max_altitude %}
                         • Max Elevation: {{ "{:,}".format(itinerary.max_altitude) }} ft
