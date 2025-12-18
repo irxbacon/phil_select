@@ -112,7 +112,9 @@
                                 <div class="col-md-6">
                                     <label for="program_{{ program.id }}" class="form-label fw-bold mb-0">
                                         {{ program.name }}
-                                        <br><small class="text-muted">({{ program.code }})</small>
+                                        {% if program.description %}
+                                            <br><small class="text-muted">{{ program.description }}</small>
+                                        {% endif %}
                                     </label>
                                 </div>
                                 <div class="col-md-6">
