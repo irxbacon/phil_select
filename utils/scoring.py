@@ -32,11 +32,15 @@ def get_available_trek_types():
     """Get all trek types that have itinerary data available"""
     conn = get_db_connection()
     trek_types = conn.execute(
-        "SELECT DISTINCT trek_type FROM itineraries ORDER BY trek_type"
+        "SELECT DISTINCT trek_type FROM itineraries"
     ).fetchall()
     conn.close()
 
-    return [row["trek_type"] for row in trek_types]
+    available = [row["trek_type"] for row in trek_types]
+    
+    # Sort in logical order (by duration, longest to shortest, then Cavalcade)
+    order = ["12-day", "9-day", "7-day", "Cavalcade"]
+    return [t for t in order if t in available]
 
 
 def get_all_trek_types():
