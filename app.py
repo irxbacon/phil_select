@@ -135,4 +135,4 @@ if __name__ == "__main__":
     else:
         print(f"Server starting at http://localhost:{args.port}")
 
-    app.run(debug=args.debug, port=args.port)
+    app.run(host="0.0.0.0", port=args.port)
