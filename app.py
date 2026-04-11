@@ -126,13 +126,26 @@ if __name__ == "__main__":
         action="store_true",
         help="Don't automatically open web browser"
     )
+    parser.add_argument(
+        "--host",
+        type=str,
+        default="127.0.0.1",
+        help="Host to bind to (default: 127.0.0.1 for security). Use 0.0.0.0 only when external access is needed."
+    )
     args = parser.parse_args()
 
+    # Determine the URL for browser/display purposes
+    display_host = "localhost" if args.host in ["127.0.0.1", "0.0.0.0"] else args.host
+    
     # Automatically open browser unless disabled or in debug mode
     if not args.no_browser and not args.debug:
         open_browser(args.port)
-        print(f"Opening browser to http://localhost:{args.port}")
+        print(f"Opening browser to http://{display_host}:{args.port}")
     else:
-        print(f"Server starting at http://localhost:{args.port}")
+        print(f"Server starting at http://{display_host}:{args.port}")
+    
+    # Security note for external binding
+    if args.host == "0.0.0.0":
+        print("⚠️  WARNING: Binding to all interfaces (0.0.0.0). Ensure proper firewall protection.")
 
-    app.run(host="0.0.0.0", port=args.port)
+    app.run(host=args.host, port=args.port)
