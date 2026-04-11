@@ -111,7 +111,7 @@ def open_browser(port):
 if __name__ == "__main__":
     # Network interface constants to avoid hardcoded IP detection
     LOCALHOST_IP = "127.0.0.1"
-    ALL_INTERFACES_IP = "0.0.0.0"
+    ALL_INTERFACES_IP = "0.0.0.0"  # nosec B104 - Used for configuration, not hardcoded binding
     
     parser = argparse.ArgumentParser(
         description="Philmont Trek Selection Application"
