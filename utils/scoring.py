@@ -244,7 +244,7 @@ class PhilmontScorer:
         for itin in itineraries:
             score_components = {
                 "program_score": self._calculate_program_score(
-                    itin["id"], program_scores, conn
+                    itin["id"], program_scores, crew_prefs, conn
                 ),
                 "difficulty_score": self._calculate_difficulty_score(itin, crew_prefs),
                 "area_score": self._calculate_area_score(itin, crew_prefs),
@@ -287,7 +287,7 @@ class PhilmontScorer:
 
         return dict(prefs) if prefs else {}
 
-    def _calculate_program_score(self, itinerary_id, program_scores, conn):
+    def _calculate_program_score(self, itinerary_id, program_scores, crew_prefs, conn):
         """Calculate program score for an itinerary"""
         # Get programs available for this itinerary based on trek type
         available_programs = conn.execute(
@@ -308,6 +308,12 @@ class PhilmontScorer:
 
         # Apply program factor from database
         program_factor = self.get_score_factor("programFactor")
+        
+        # Apply additional weighting if programs are very important to the crew
+        if crew_prefs.get("programs_important", False):
+            # Double the program factor when programs are marked as very important
+            program_factor *= 2.0
+        
         return total_score * program_factor
 
     def _calculate_difficulty_score(self, itinerary, crew_prefs):
