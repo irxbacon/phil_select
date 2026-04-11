@@ -130,6 +130,8 @@
         options: {
             responsive: true,
             maintainAspectRatio: false,
+            // Add this to ensure the chart recalculates correctly on window resize
+            resizeDelay: 100,
             plugins: {
                 title: {
                     display: true,
@@ -163,13 +165,18 @@
                     }
                 },
                 x: {
+                    // Force the grid and labels to align with the center of the bars
+                    grid: {
+                        offset: true
+                    },
                     title: {
                         display: true,
                         text: 'Programs (ranked by preference)'
                     },
                     ticks: {
                         maxRotation: 45,
-                        minRotation: 45
+                        minRotation: 45,
+                        autoSkip: false // Ensures every program name is shown if filtered
                     }
                 }
             },

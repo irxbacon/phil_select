@@ -56,9 +56,11 @@ def program_chart():
     for program in programs:
         raw_score = program_scores.get(program["id"], 0)
         factored_score = raw_score * program_factor
-        chart_data.append(
-            {"id": program["id"], "name": program["name"], "score": factored_score}
-        )
+        # Only add to chart if the score is greater than 0
+        if factored_score > 0:
+            chart_data.append(
+                {"id": program["id"], "name": program["name"], "score": factored_score}
+            )
 
     # Sort by score (descending)
     chart_data.sort(key=lambda x: x["score"], reverse=True)
