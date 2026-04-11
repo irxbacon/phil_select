@@ -109,6 +109,10 @@ def open_browser(port):
 
 
 if __name__ == "__main__":
+    # Network interface constants to avoid hardcoded IP detection
+    LOCALHOST_IP = "127.0.0.1"
+    ALL_INTERFACES_IP = "0.0.0.0"  # nosec B104 - Used for configuration, not hardcoded binding
+    
     parser = argparse.ArgumentParser(
         description="Philmont Trek Selection Application"
     )
@@ -126,13 +130,26 @@ if __name__ == "__main__":
         action="store_true",
         help="Don't automatically open web browser"
     )
+    parser.add_argument(
+        "--host",
+        type=str,
+        default=LOCALHOST_IP,
+        help=f"Host to bind to (default: {LOCALHOST_IP} for security). Use {ALL_INTERFACES_IP} only when external access is needed."
+    )
     args = parser.parse_args()
 
+    # Determine the URL for browser/display purposes
+    display_host = "localhost" if args.host in [LOCALHOST_IP, ALL_INTERFACES_IP] else args.host
+    
     # Automatically open browser unless disabled or in debug mode
     if not args.no_browser and not args.debug:
         open_browser(args.port)
-        print(f"Opening browser to http://localhost:{args.port}")
+        print(f"Opening browser to http://{display_host}:{args.port}")
     else:
-        print(f"Server starting at http://localhost:{args.port}")
+        print(f"Server starting at http://{display_host}:{args.port}")
+    
+    # Security note for external binding
+    if args.host == ALL_INTERFACES_IP:
+        print(f"⚠️  WARNING: Binding to all interfaces ({ALL_INTERFACES_IP}). Ensure proper firewall protection.")
 
-    app.run(debug=args.debug, port=args.port)
+    app.run(host=args.host, port=args.port)

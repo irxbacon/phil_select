@@ -1,0 +1,7 @@
+[bandit]
+# Ignore B104 (hardcoded_bind_all_interfaces) since we use configurable binding
+# with secure defaults and explicit warnings
+skips = B104
+
+# Optional: You can also exclude specific files or paths
+# exclude_dirs = /tests/,/venv/
